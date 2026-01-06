@@ -1,14 +1,51 @@
-name: Manuell startbarer Workflow
+name: Publish Release
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version"
+        required: true
+        type: string
+
+permissions:
+  contents: write
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  build-and-draft:
+    runs-on: ubuntu-22.04
+    container:
+      image: mcr.microsoft.com/openjdk/jdk:21-ubuntu
+      options: --user root
+
     steps:
-      - name: Repository auschecken
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Beispielschritt
-        run: echo "Dieser Workflow wurde manuell gestartet!"
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Download changelog script
+        run: curl -o generate_changelog.sh https://files.mrjulsen.net/scripts/java/generate_changelog.sh
+
+      - name: Generate changelog
+        run: |
+          chmod +x generate_changelog.sh
+          ./generate_changelog.sh "${{ github.event.inputs.version }}" > CHANGELOG.md
+
+      - name: Build Mods
+        # Hinweis: Hier nur 'build', noch kein 'publishMods'
+        run: ./gradlew -Pmod_version=${{ github.event.inputs.version }} build
+
+      - name: Create GitHub Release Draft
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.event.inputs.version }}
+          name: Release ${{ github.event.inputs.version }}
+          body_path: CHANGELOG.md
+          draft: true  # <--- Das ist das Wichtigste!
+          files: |
+            fabric/build/libs/*.jar
+            forge/build/libs/*.jar
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

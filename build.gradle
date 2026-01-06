@@ -65,7 +65,7 @@ subprojects {
         type = STABLE
         file = tasks.remapJar.archiveFile
         version.set(mod_version)
-        changelog = rootProject.file("CHANGELOG.md").text
+        changelog = "Changelog Test"
     }
 }
 
