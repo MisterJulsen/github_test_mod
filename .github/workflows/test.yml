@@ -27,7 +27,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: "**/.gradle/loom-cache"
-          key: "${{ runner.os }}-gradle-${{ hashFiles('**/libs.versions.*', '**/*.gradle*', '**/gradle-wrapper.properties') }}"
+          key: ${{ runner.os }}-gradle-${{ hashFiles('gradle/libs.versions.toml', 'build.gradle', 'settings.gradle', 'gradle.properties') }}
           restore-keys: "${{ runner.os }}-gradle-"
 
       - name: Setup Gradle
@@ -56,6 +56,9 @@ jobs:
 
       - name: Download changelog script
         run: curl -o generate_changelog.sh https://files.mrjulsen.net/scripts/java/generate_changelog.sh
+
+      - name: Make changelog script executable
+        run: chmod +x generate_changelog.sh
 
       - name: Generate changelog
         run: ./generate_changelog.sh "${{ steps.version.outputs.version }}" > CHANGELOG.md
