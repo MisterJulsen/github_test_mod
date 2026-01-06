@@ -5,12 +5,13 @@ plugins {
     id "me.modmuss50.mod-publish-plugin" version "1.1.0"
 }
 
+apply from: "https://files.mrjulsen.net/scripts/java/minecraft_mod_version.gradle"
+
 architectury {
     minecraft = project.minecraft_version
 }
 
 allprojects {
-    apply from: "https://files.mrjulsen.net/scripts/java/minecraft_mod_version.gradle"
 
     group = rootProject.maven_group
     version = rootProject.mod_version
