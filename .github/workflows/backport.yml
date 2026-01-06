@@ -31,37 +31,18 @@ jobs:
         run: |
           echo "src=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
 
-      - name: Create backport PRs
+      - name: Download backport script
+        run: curl -o backport.sh https://files.mrjulsen.net/scripts/java/minecraft_version_backport.sh
+
+      - name: Make script executable
+        run: chmod +x backport.sh
+
+      - name: Run backport script
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          for target in ${{ steps.cfg.outputs.targets }}; do
-            if [ "$target" = "${{ steps.src.outputs.src }}" ]; then
-              echo "Skipping same branch: $target"
-              continue
-            fi
-
-            echo "Backporting to $target"
-
-            git fetch origin $target
-            git checkout $target
-            git pull origin $target
-
-            branch="backport/${{ github.event.pull_request.number }}-to-${target##*/}"
-            git checkout -b "$branch"
-
-            # Try cherry-pick
-            if ! git cherry-pick -x ${{ github.event.pull_request.merge_commit_sha }}; then
-              echo "Cherry-pick conflict in $target"
-              git add .
-              git commit -m "Backport (with conflicts) of #${{ github.event.pull_request.number }}"
-            fi
-
-            git push origin "$branch"
-
-            gh pr create \
-              --title "Backport #${{ github.event.pull_request.number }} to ${target}" \
-              --body "Automated backport of #${{ github.event.pull_request.number }} into ${target}." \
-              --base "$target" \
-              --head "$branch"
-          done
+          ./backport.sh \
+            "${{ steps.cfg.outputs.targets }}" \
+            "${{ steps.src.outputs.src }}" \
+            "${{ github.event.pull_request.number }}" \
+            "${{ github.event.pull_request.merge_commit_sha }}"
