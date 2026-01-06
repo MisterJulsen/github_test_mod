@@ -1,0 +1,27 @@
+name: Build Check
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Build Test Version
+        run: TEST_BUILD=${{ github.event.number }} ./gradlew build
+
+      - name: Upload Test Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-${{ github.event.number }}
+          path: |
+            fabric/build/libs/
+            forge/build/libs/

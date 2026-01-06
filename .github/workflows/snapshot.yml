@@ -1,0 +1,32 @@
+name: Snapshot Build
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - 'mc/*'
+
+jobs:
+  snapshot:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Build Snapshot
+        run: SNAPSHOT_BUILD=${{ github.run_number }} ./gradlew build
+
+      - name: Upload Snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: snapshot-${{ github.run_number }}
+          path: |
+            fabric/build/libs/
+            forge/build/libs/
