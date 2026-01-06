@@ -41,17 +41,11 @@ jobs:
 
       - name: Build
         run: ./gradlew build
-      - name: Get Mod Version
-        id: mod_version
-        run: |
-          VERSION=$(./gradlew -q printVersion)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Read version from Gradle
         run: |
-          VERSION="$(./gradlew -q printVersion | head -n 1 | tr -d '\r\n')"
+          VERSION="$(./gradlew -q printVersion | tr -d '\r\n')"
           echo "MOD_VERSION=$VERSION" >> "$GITHUB_ENV"
-
 
       - name: Download changelog script
         run: curl -o generate_changelog.sh https://files.mrjulsen.net/scripts/java/generate_changelog.sh
