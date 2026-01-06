@@ -10,7 +10,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -18,22 +19,42 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - name: Generate final version
-        run: |
-          echo "Final version: ${{ env.version }}"
+      - name: Validate Gradle Wrapper Integrity
+        uses: gradle/wrapper-validation-action@v2
 
-      - name: Build Release
-        run: ./gradlew build
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-gradle-
 
-      - name: Generate Changelog
+      - name: Loom cache
+        uses: actions/cache@v4
+        with:
+          path: "**/.gradle/loom-cache"
+          key: "${{ runner.os }}-loom-${{ hashFiles('**/libs.versions.*', '**/*.gradle*', '**/gradle-wrapper.properties') }}"
+          restore-keys: "${{ runner.os }}-loom-"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-home-cache-cleanup: true
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Generate changelog
         run: |
           chmod +x scripts/generate_changelog.sh
-          scripts/generate_changelog.sh ${{ env.version }} > CHANGELOG.md
+          scripts/generate_changelog.sh "${GITHUB_REF_NAME}" > CHANGELOG.md
 
-      - name: Upload Release Artifacts
+      - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ env.version }}
+          name: release-${{ github.run_number }}
           path: |
             fabric/build/libs/
             forge/build/libs/

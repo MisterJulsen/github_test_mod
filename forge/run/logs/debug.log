@@ -10991,3 +10991,20 @@ java.lang.IllegalAccessException: class io.netty.util.internal.PlatformDependent
 [06Jan2026 12:06:51.341] [Render thread/INFO] [net.minecraft.client.renderer.texture.TextureAtlas/]: Created: 256x256x0 minecraft:textures/atlas/particles.png-atlas
 [06Jan2026 12:06:51.342] [Render thread/INFO] [net.minecraft.client.renderer.texture.TextureAtlas/]: Created: 256x256x0 minecraft:textures/atlas/paintings.png-atlas
 [06Jan2026 12:06:51.343] [Render thread/INFO] [net.minecraft.client.renderer.texture.TextureAtlas/]: Created: 128x128x0 minecraft:textures/atlas/mob_effects.png-atlas
+[06Jan2026 13:40:47.484] [Render thread/INFO] [net.minecraft.client.sounds.SoundEngine/]: Audio device was lost!
+[06Jan2026 13:40:47.486] [Render thread/WARN] [net.minecraft.client.sounds.SoundEngine/]: Missing sound for event: minecraft:item.goat_horn.play
+[06Jan2026 13:40:47.487] [Render thread/WARN] [net.minecraft.client.sounds.SoundEngine/]: Missing sound for event: minecraft:entity.goat.screaming.horn_break
+[06Jan2026 13:40:47.548] [Render thread/INFO] [com.mojang.blaze3d.audio.Library/]: OpenAL initialized on device OpenAL Soft on Lautsprecher (Realtek(R) Audio)
+[06Jan2026 13:40:47.548] [Render thread/INFO] [net.minecraft.client.sounds.SoundEngine/SOUNDS]: Sound engine started
+[06Jan2026 13:40:47.556] [IO-Worker-24/INFO] [net.minecraft.client.sounds.SoundEngine/]: System default audio device has changed!
+[06Jan2026 13:40:47.563] [Render thread/WARN] [net.minecraft.client.sounds.SoundEngine/]: Missing sound for event: minecraft:item.goat_horn.play
+[06Jan2026 13:40:47.564] [Render thread/WARN] [net.minecraft.client.sounds.SoundEngine/]: Missing sound for event: minecraft:entity.goat.screaming.horn_break
+[06Jan2026 13:40:48.028] [Render thread/INFO] [com.mojang.blaze3d.audio.Library/]: OpenAL initialized on device OpenAL Soft on Lautsprecher (Realtek(R) Audio)
+[06Jan2026 13:40:48.028] [Render thread/INFO] [net.minecraft.client.sounds.SoundEngine/SOUNDS]: Sound engine started
+[06Jan2026 13:49:15.448] [IO-Worker-24/INFO] [net.minecraft.client.sounds.SoundEngine/]: System default audio device has changed!
+[06Jan2026 13:49:15.496] [Render thread/WARN] [net.minecraft.client.sounds.SoundEngine/]: Missing sound for event: minecraft:item.goat_horn.play
+[06Jan2026 13:49:15.496] [Render thread/WARN] [net.minecraft.client.sounds.SoundEngine/]: Missing sound for event: minecraft:entity.goat.screaming.horn_break
+[06Jan2026 13:49:15.529] [Render thread/INFO] [com.mojang.blaze3d.audio.Library/]: OpenAL initialized on device OpenAL Soft on Kopfhörer (2- Bose QC45)
+[06Jan2026 13:49:15.529] [Render thread/INFO] [net.minecraft.client.sounds.SoundEngine/SOUNDS]: Sound engine started
+[06Jan2026 13:52:17.722] [Realms Notification Availability checker #1/INFO] [com.mojang.realmsclient.client.RealmsClient/]: Could not authorize you against Realms server: java.lang.RuntimeException: Failed to parse into SignedJWT: 0
+[06Jan2026 13:52:22.791] [Render thread/INFO] [net.minecraft.client.Minecraft/]: Stopping!
