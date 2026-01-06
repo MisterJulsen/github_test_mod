@@ -41,24 +41,24 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
-      - name: Download changelog script
-        run: curl -o generate_changelog.sh https://files.mrjulsen.net/scripts/java/generate_changelog.sh
+      - name: Build
+        run: ./gradlew build
 
       - name: Read version from Gradle
         id: version
         run: echo "version=$(./gradlew -q printVersion)" >> $GITHUB_OUTPUT
-
-      - name: Generate changelog
-        run: ./generate_changelog.sh "${{ steps.version.outputs.version }}" > CHANGELOG.md
-
-      - name: Build
-        run: ./gradlew build
 
       - name: Read enabled platforms
         id: platforms
         run: |
           platforms=$(grep "^enabled_platforms" gradle.properties | cut -d'=' -f2)
           echo "platforms=$platforms" >> $GITHUB_OUTPUT
+
+      - name: Download changelog script
+        run: curl -o generate_changelog.sh https://files.mrjulsen.net/scripts/java/generate_changelog.sh
+
+      - name: Generate changelog
+        run: ./generate_changelog.sh "${{ steps.version.outputs.version }}" > CHANGELOG.md
 
       - name: Upload Release Artifacts
         uses: actions/upload-artifact@v4
