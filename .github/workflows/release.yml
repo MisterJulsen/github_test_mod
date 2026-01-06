@@ -46,6 +46,9 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
+      - name: Build Test Version
+        run: TEST_BUILD=${{ github.event.number }} ./gradlew build
+
       - name: Generate changelog
         run: |
           chmod +x scripts/generate_changelog.sh
