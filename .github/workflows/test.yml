@@ -1,0 +1,19 @@
+name: Manuell startbarer Workflow
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version"
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Beispielschritt
+        run: echo "Dieser Workflow wurde manuell gestartet!"
