@@ -73,11 +73,10 @@ jobs:
             CHANGELOG.md
 
       - name: Create GitHub Release Draft
-        id: create_release
-        uses: actions/create-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.version }}
-          release_name: ${{ steps.version.outputs.version }}
+          name: ${{ steps.version.outputs.version }}
           draft: true
           prerelease: ${{ contains(steps.version.outputs.version, 'beta') || contains(steps.version.outputs.version, 'alpha') }}
           body_path: CHANGELOG.md
