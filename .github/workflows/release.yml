@@ -13,9 +13,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # ---------------------------------------------------------
-      # Checkout & Setup
-      # ---------------------------------------------------------
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -43,9 +40,6 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
-      # ---------------------------------------------------------
-      # Read project metadata from gradle.properties
-      # ---------------------------------------------------------
       - name: Read Gradle properties
         id: props
         run: |
@@ -54,24 +48,18 @@ jobs:
           echo "mc_version=$MC_VERSION" >> $GITHUB_OUTPUT
           echo "platforms=$PLATFORMS" >> $GITHUB_OUTPUT
 
-      # ---------------------------------------------------------
-      # Build Release
-      # ---------------------------------------------------------
       - name: Build Release
         run: ./gradlew build
 
-      # ---------------------------------------------------------
-      # Changelog
-      # ---------------------------------------------------------
       - name: Download changelog script
         run: curl -o generate_changelog.sh https://files.mrjulsen.net/scripts/java/generate_changelog.sh
+
+      - name: Make script executable
+        run: chmod +x generate_changelog.sh
 
       - name: Generate changelog
         run: ./generate_changelog.sh ${{ env.version }} > CHANGELOG.md
 
-      # ---------------------------------------------------------
-      # Upload Release Artifacts (CI artifacts)
-      # ---------------------------------------------------------
       - name: Upload Release Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -81,9 +69,6 @@ jobs:
             forge/build/libs/
             CHANGELOG.md
 
-      # ---------------------------------------------------------
-      # GitHub Release Draft
-      # ---------------------------------------------------------
       - name: Create GitHub Release Draft
         id: create_release
         uses: softprops/action-gh-release@v2
