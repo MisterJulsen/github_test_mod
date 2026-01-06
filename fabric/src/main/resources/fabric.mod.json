@@ -1,0 +1,37 @@
+{
+    "schemaVersion": 1,
+    "id": "github_test_mod",
+    "version": "${version}",
+    "name": "GitHub Test Mod",
+    "description": "",
+    "authors": [
+        ""
+    ],
+    "contact": {
+        "homepage": ""
+    },
+    "license": "GPL-3.0",
+    "icon": "assets/github_test_mod/icon.png",
+    "environment": "*",
+    "entrypoints": {
+        "main": [
+            "de.mrjulsen.githubtest.fabric.GithubTestTmodFabric"
+        ],
+        "client": [
+            "de.mrjulsen.githubtest.fabric.client.GithubTestTmodFabricClient"
+        ]
+    },
+    "mixins": [
+        "github_test_mod.mixins.json"
+    ],
+    "depends": {
+        "fabricloader": ">=0.18.4",
+        "minecraft": "~1.20.1",
+        "java": ">=17",
+        "architectury": ">=9.2.14",
+        "fabric-api": "*"
+    },
+    "suggests": {
+        "another-mod": "*"
+    }
+}
