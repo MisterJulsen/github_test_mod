@@ -48,10 +48,10 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Read version from Gradle
-        id: version
         run: |
-          VERSION=$(./gradlew -q printVersion | tr -d '\r\n')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          VERSION="$(./gradlew -q printVersion | head -n 1 | tr -d '\r\n')"
+          echo "MOD_VERSION=$VERSION" >> "$GITHUB_ENV"
+
 
       - name: Download changelog script
         run: curl -o generate_changelog.sh https://files.mrjulsen.net/scripts/java/generate_changelog.sh
@@ -60,12 +60,12 @@ jobs:
         run: chmod +x generate_changelog.sh
 
       - name: Generate changelog
-        run: ./generate_changelog.sh "${{ steps.version.outputs.version }}" > CHANGELOG.md
+        run: ./generate_changelog.sh "${{ env.MOD_VERSION }}" > CHANGELOG.md
 
       - name: Upload Release Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ steps.version.outputs.version }}
+          name: release-${{ env.MOD_VERSION }}
           path: |
             fabric/build/libs/
             forge/build/libs/
@@ -74,10 +74,10 @@ jobs:
       - name: Create GitHub Release Draft
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.version.outputs.version }}
-          name: ${{ steps.version.outputs.version }}
+          tag_name: ${{ env.MOD_VERSION }}
+          name: ${{ env.MOD_VERSION }}
           draft: true
-          prerelease: ${{ contains(steps.version.outputs.version, 'beta') || contains(steps.version.outputs.version, 'alpha') }}
+          prerelease: ${{ contains(env.MOD_VERSION, 'beta') || contains(env.MOD_VERSION, 'alpha') }}
           body_path: CHANGELOG.md
           files: |
             fabric/build/libs/*.jar
