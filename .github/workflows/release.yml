@@ -2,26 +2,41 @@ name: Publish Release
 
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: "Release version"
-        required: true
-        type: string
 
 permissions:
   contents: write
 
 jobs:
-  publish:
-    runs-on: ubuntu-22.04
-
-    container:
-      image: mcr.microsoft.com/openjdk/jdk:21-ubuntu
-      options: --user root
+  build:
+    strategy:
+      matrix:
+        java: [ 21 ]
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Loom Cache
+        uses: actions/cache@v4
+        with:
+          path: "**/.gradle/loom-cache"
+          key: "${{ runner.os }}-gradle-${{ hashFiles('**/libs.versions.*', '**/*.gradle*', '**/gradle-wrapper.properties') }}"
+          restore-keys: "${{ runner.os }}-gradle-"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-home-cache-cleanup: true
+
+      - name: Validate Gradle Wrapper Integrity
+        uses: gradle/wrapper-validation-action@v2
 
       - name: Make gradlew executable
         run: chmod +x gradlew
@@ -29,21 +44,42 @@ jobs:
       - name: Download changelog script
         run: curl -o generate_changelog.sh https://files.mrjulsen.net/scripts/java/generate_changelog.sh
 
-      - name: Generate changelog
-        run: ./generate_changelog.sh "${{ github.event.inputs.version }}" > CHANGELOG.md
+      - name: Read version from Gradle
+        id: version
+        run: echo "version=$(./gradlew -q printVersion)" >> $GITHUB_OUTPUT
 
-      - name: Build & Publish Mods
-        run: ./gradlew -Pmod_version=${{ github.event.inputs.version }} build publishMods
-        env:
-          CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
-          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate changelog
+        run: ./generate_changelog.sh "${{ steps.version.outputs.version }}" > CHANGELOG.md
+
+      - name: Build
+        run: ./gradlew build
+
+      - name: Read enabled platforms
+        id: platforms
+        run: |
+          platforms=$(grep "^enabled_platforms" gradle.properties | cut -d'=' -f2)
+          echo "platforms=$platforms" >> $GITHUB_OUTPUT
 
       - name: Upload Release Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ github.event.inputs.version }}
+          name: release-${{ steps.version.outputs.version }}
           path: |
             fabric/build/libs/
             forge/build/libs/
             CHANGELOG.md
+
+      - name: Create GitHub Release Draft
+        id: create_release
+        uses: actions/create-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          release_name: ${{ steps.version.outputs.version }}
+          draft: true
+          prerelease: ${{ contains(steps.version.outputs.version, 'beta') || contains(steps.version.outputs.version, 'alpha') }}
+          body_path: CHANGELOG.md
+          files: |
+            fabric/build/libs/*.jar
+            forge/build/libs/*.jar
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
