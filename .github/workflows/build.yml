@@ -38,6 +38,14 @@ jobs:
       - name: Build
         run: TEST_BUILD=${{ github.event.number }} ./gradlew build
 
+      - name: Generate Javadoc
+        run: ./gradlew javadocAll
+          - name: Upload Javadoc
+            uses: actions/upload-artifact@v4
+            with:
+              name: javadoc-${{ github.event.number }}
+              path: docs/
+
       - name: Capture Test Artifacts
         uses: actions/upload-artifact@v4
         with:

@@ -37,9 +37,6 @@ subprojects {
     }
 
     java {
-        // Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
-        // if it is present.
-        // If you remove this line, sources will not be generated.
         withSourcesJar()
 
         sourceCompatibility = JavaVersion.VERSION_17
@@ -50,7 +47,6 @@ subprojects {
         it.options.release = 17
     }
 
-    // Configure Maven publishing.
     publishing {
         publications {
             mavenJava(MavenPublication) {
@@ -59,12 +55,15 @@ subprojects {
             }
         }
 
-        // See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
         repositories {
-            // Add repositories to publish to here.
-            // Notice: This block does NOT have the same function as the block in the top level.
-            // The repositories here will be used for publishing your artifact, not for
-            // retrieving dependencies.
         }
     }
+}
+
+tasks.register("javadocAll", Javadoc) {
+    source subprojects.collect { it.sourceSets.main.allJava }
+    classpath = files(subprojects.collect { it.sourceSets.main.compileClasspath })
+    destinationDir = rootProject.file("docs")
+
+    options.encoding = "UTF-8"
 }
