@@ -1,19 +1,14 @@
-name: Build Check
-
-on:
-  push:
-    branches:
-      - 'mc/*'
-  pull_request:
-    branches:
-      - 'mc/*'
+name: build
+on: [ pull_request, push ]
 
 jobs:
   build:
+    strategy:
+      matrix:
+        java: [ 17 ]
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Setup Java
@@ -22,40 +17,31 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - name: Validate Gradle Wrapper Integrity
-        uses: gradle/wrapper-validation-action@v2
-
-      - name: Cache Gradle
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: ${{ runner.os }}-gradle-
-
-      - name: Loom cache
+      - name: Loom Cache
         uses: actions/cache@v4
         with:
           path: "**/.gradle/loom-cache"
-          key: "${{ runner.os }}-loom-${{ hashFiles('**/libs.versions.*', '**/*.gradle*', '**/gradle-wrapper.properties') }}"
-          restore-keys: "${{ runner.os }}-loom-"
+          key: "${{ runner.os }}-gradle-${{ hashFiles('**/libs.versions.*', '**/*.gradle*', '**/gradle-wrapper.properties') }}"
+          restore-keys: "${{ runner.os }}-gradle-"
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-home-cache-cleanup: true
 
+      - name: Validate Gradle Wrapper Integrity
+        uses: gradle/wrapper-validation-action@v2
+
       - name: Make gradlew executable
         run: chmod +x gradlew
 
-      - name: Build Test Version
-        run: TEST_BUILD=${{ github.event.number }} ./gradlew build
+      - name: build
+        run: ./gradlew build
 
-      - name: Upload build artifacts
+      - name: capture build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: test-build-${{ github.run_number }}
+          name: test-${{ github.event.number }}
           path: |
             fabric/build/libs/
             forge/build/libs/
