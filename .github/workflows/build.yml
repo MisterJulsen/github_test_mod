@@ -35,10 +35,10 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
-      - name: Build Test Version
+      - name: build
         run: ./gradlew build
 
-      - name: Upload Build Artifacts
+      - name: capture build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: test-${{ github.event.number }}
