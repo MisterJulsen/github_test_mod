@@ -23,12 +23,17 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - name: Loom Cache
+      - name: Cache Gradle & Loom
         uses: actions/cache@v4
         with:
-          path: "**/.gradle/loom-cache"
-          key: ${{ runner.os }}-gradle-${{ hashFiles('gradle/libs.versions.toml', 'build.gradle', 'settings.gradle', 'gradle.properties') }}
-          restore-keys: "${{ runner.os }}-gradle-"
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            **/.gradle/loom-cache
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle.properties', '**/libs.versions.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -42,10 +47,12 @@ jobs:
       - name: Build
         run: ./gradlew build
 
-      - name: Read version from Gradle
+      - name: Write and read version
         run: |
-          VERSION="$(./gradlew -q printVersion | tr -d '\r\n')"
+          ./gradlew -q exportMinecraftVersion
+          VERSION="$(cat build/minecraft_version_exp.txt | tr -d '\r\n')"
           echo "MOD_VERSION=$VERSION" >> "$GITHUB_ENV"
+
 
       - name: Download changelog script
         run: curl -o generate_changelog.sh https://files.mrjulsen.net/scripts/java/generate_changelog.sh

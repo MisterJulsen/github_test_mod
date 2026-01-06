@@ -5,8 +5,6 @@ plugins {
     id "me.modmuss50.mod-publish-plugin" version "1.1.0"
 }
 
-apply from: "https://files.mrjulsen.net/scripts/java/minecraft_mod_version.gradle"
-
 architectury {
     minecraft = project.minecraft_version
 }
@@ -21,6 +19,7 @@ subprojects {
     apply plugin: 'dev.architectury.loom'
     apply plugin: 'architectury-plugin'
     apply plugin: 'maven-publish'
+    apply from: "https://files.mrjulsen.net/scripts/java/minecraft_mod_version.gradle"
 
     loom {
         silentMojangMappingsLicense()
