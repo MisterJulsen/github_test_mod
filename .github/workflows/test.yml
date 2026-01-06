@@ -44,13 +44,19 @@ jobs:
 
       - name: Read version from Gradle
         id: version
-        run: echo "version=$(./gradlew -q printVersion)" >> $GITHUB_OUTPUT
+        run: |
+          VERSION=$(./gradlew -q printVersion)
+          echo "version<<EOF" >> $GITHUB_OUTPUT
+          echo "$VERSION" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Read enabled platforms
         id: platforms
         run: |
-          platforms=$(grep "^enabled_platforms" gradle.properties | cut -d'=' -f2)
-          echo "platforms=$platforms" >> $GITHUB_OUTPUT
+          PLATFORMS=$(grep "^enabled_platforms" gradle.properties | cut -d'=' -f2)
+          echo "platforms<<EOF" >> $GITHUB_OUTPUT
+          echo "$PLATFORMS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Download changelog script
         run: curl -o generate_changelog.sh https://files.mrjulsen.net/scripts/java/generate_changelog.sh
