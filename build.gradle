@@ -9,7 +9,6 @@ architectury {
 }
 
 allprojects {
-
     group = rootProject.maven_group
     version = rootProject.mod_version
 }
@@ -20,17 +19,16 @@ subprojects {
     apply plugin: 'maven-publish'
     apply from: "../gradle/version.gradle"
 
+    loom {
+        silentMojangMappingsLicense()
+    }
+
     base {
-        // Set up a suffixed format for the mod jar names, e.g. `example-fabric`.
         archivesName = "$rootProject.archives_name-$project.name"
     }
 
     repositories {
-        // Add repositories to retrieve artifacts from in here.
-        // You should only use this when depending on other mods because
-        // Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
-        // See https://docs.gradle.org/current/userguide/declaring_repositories.html
-        // for more information about repositories.
+        mavenCentral()
     }
 
     dependencies {
