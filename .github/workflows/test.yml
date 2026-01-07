@@ -95,19 +95,24 @@ jobs:
           echo "Generated changelog:"
           cat CHANGELOG.md
 
-
-
       # ------------------------------------------------------------
       # Upload artifacts
       # ------------------------------------------------------------
+      - name: Build artifact paths
+        run: |
+          MODULES=$(jq -r '.modules[]' .release-config.json)
+          echo "ARTIFACT_PATHS<<EOF" >> $GITHUB_ENV
+          for M in $MODULES; do
+            echo "$M/build/libs/" >> $GITHUB_ENV
+          done
+          echo "CHANGELOG.md" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
       - name: Upload Release Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: release-${{ env.MOD_VERSION }}
-          path: |
-            ${{ env.MODULES }}/build/libs/
-            CHANGELOG.md
-
+          path: ${{ env.ARTIFACT_PATHS }}
 
       # ------------------------------------------------------------
       # GitHub Release (Draft)
