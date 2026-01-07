@@ -53,7 +53,6 @@ jobs:
           VERSION="$(cat build/minecraft_version_exp.txt | tr -d '\r\n')"
           echo "MOD_VERSION=$VERSION" >> "$GITHUB_ENV"
 
-
       - name: Download changelog script
         run: curl -o generate_changelog.sh https://files.mrjulsen.net/scripts/java/generate_changelog.sh
 

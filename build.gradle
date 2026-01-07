@@ -77,3 +77,10 @@ tasks.register("javadocAll", Javadoc) {
 
     options.encoding = "UTF-8"
 }
+
+tasks.register("printVersion") {
+    doLast {
+        println(version)
+    }
+}
+
