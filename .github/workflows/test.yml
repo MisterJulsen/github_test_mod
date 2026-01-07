@@ -43,6 +43,9 @@ jobs:
           gradle-home-cache-cleanup: true
           gradle-version: wrapper
 
+      - run: cat scripts/changelog_categories.json
+
+
       - name: Make gradlew executable
         run: chmod +x gradlew
 
