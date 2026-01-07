@@ -71,8 +71,12 @@ jobs:
       - name: Read release config
         id: config
         run: |
-          MODULES=$(jq -r '.modules[]' .release-config.json | tr '\n' ' ')
-          echo "MODULES=$MODULES" >> $GITHUB_ENV
+          MODULES=$(jq -r '.modules[]' .release-config.json)
+          echo "MODULES<<EOF" >> $GITHUB_ENV
+          for M in $MODULES; do
+            echo "$M/build/libs/*.jar" >> $GITHUB_ENV
+          done
+          echo "EOF" >> $GITHUB_ENV
 
       # ------------------------------------------------------------
       # Changelog generation
@@ -116,8 +120,8 @@ jobs:
           draft: true
           prerelease: ${{ contains(env.MOD_VERSION, 'beta') || contains(env.MOD_VERSION, 'alpha') }}
           body_path: CHANGELOG.md
-          files: |
-            ${{ env.MODULES }}/build/libs/*.jar
+          files: ${{ env.MODULES }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
