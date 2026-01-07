@@ -23,7 +23,7 @@ jobs:
       - name: Read backport config (JSON)
         id: cfg
         run: |
-          TARGETS=$(jq -r '.branches[]' .github/backport-config.json | tr '\n' ' ')
+          TARGETS=$(jq -r '.branches[]' .release-config.json | tr '\n' ' ')
           echo "targets=$TARGETS" >> $GITHUB_OUTPUT
 
       - name: Determine source branch

@@ -62,32 +62,35 @@ jobs:
       # ------------------------------------------------------------
       # Read mod version
       # ------------------------------------------------------------
-      - name: Write and read version
+      - name: Read mod version
         run: |
           ./gradlew -q exportMinecraftVersion
           VERSION="$(tr -d '\r\n' < build/minecraft_version_exp.txt)"
           echo "MOD_VERSION=$VERSION" >> "$GITHUB_ENV"
 
+      - name: Read release config
+        id: config
+        run: |
+          MODULES=$(jq -r '.modules[]' .release-config.json | tr '\n' ' ')
+          echo "MODULES=$MODULES" >> $GITHUB_ENV
+
       # ------------------------------------------------------------
       # Changelog generation
       # ------------------------------------------------------------
-      - name: Install jq
-        run: sudo apt-get update && sudo apt-get install -y jq
-
-      - name: Download changelog script
+      - name: Generate changelog
         run: |
+          sudo apt-get update && sudo apt-get install -y jq
+          
           curl -fsSL \
             https://files.mrjulsen.net/scripts/java/generate_changelog.sh \
             -o generate_changelog.sh
-
-      - name: Make changelog script executable
-        run: chmod +x generate_changelog.sh
-
-      - name: Generate changelog
-        run: |
+          
+          chmod +x generate_changelog.sh
+          
           ./generate_changelog.sh "${{ env.MOD_VERSION }}"
           echo "Generated changelog:"
           cat CHANGELOG.md
+
 
 
       # ------------------------------------------------------------
@@ -98,9 +101,9 @@ jobs:
         with:
           name: release-${{ env.MOD_VERSION }}
           path: |
-            fabric/build/libs/
-            forge/build/libs/
+            ${{ env.MODULES }}/build/libs/
             CHANGELOG.md
+
 
       # ------------------------------------------------------------
       # GitHub Release (Draft)
@@ -114,7 +117,7 @@ jobs:
           prerelease: ${{ contains(env.MOD_VERSION, 'beta') || contains(env.MOD_VERSION, 'alpha') }}
           body_path: CHANGELOG.md
           files: |
-            fabric/build/libs/*.jar
-            forge/build/libs/*.jar
+            ${{ env.MODULES }}/build/libs/*.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
