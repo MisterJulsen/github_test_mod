@@ -8,17 +8,25 @@ permissions:
 
 jobs:
   build:
-    strategy:
-      matrix:
-        java: [ 21 ]
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        java: [21]
+
     steps:
-      - uses: actions/checkout@v4
+      # ------------------------------------------------------------
+      # Checkout
+      # ------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           fetch-tags: true
 
+      # ------------------------------------------------------------
+      # Java & Gradle Setup
+      # ------------------------------------------------------------
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -36,37 +44,54 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-home-cache-cleanup: true
           gradle-version: wrapper
 
-      - run: cat scripts/changelog_categories.json
-
-
       - name: Make gradlew executable
         run: chmod +x gradlew
 
+      # ------------------------------------------------------------
+      # Build
+      # ------------------------------------------------------------
       - name: Build
         run: ./gradlew build
 
+      # ------------------------------------------------------------
+      # Read mod version
+      # ------------------------------------------------------------
       - name: Write and read version
         run: |
           ./gradlew -q exportMinecraftVersion
-          VERSION="$(cat build/minecraft_version_exp.txt | tr -d '\r\n')"
+          VERSION="$(tr -d '\r\n' < build/minecraft_version_exp.txt)"
           echo "MOD_VERSION=$VERSION" >> "$GITHUB_ENV"
 
+      # ------------------------------------------------------------
+      # Changelog generation
+      # ------------------------------------------------------------
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
       - name: Download changelog script
-        run: curl -o generate_changelog.sh https://files.mrjulsen.net/scripts/java/generate_changelog.sh
+        run: |
+          curl -fsSL \
+            https://files.mrjulsen.net/scripts/java/generate_changelog.sh \
+            -o generate_changelog.sh
 
       - name: Make changelog script executable
         run: chmod +x generate_changelog.sh
 
       - name: Generate changelog
-        run: ./generate_changelog.sh "${{ env.MOD_VERSION }}" > CHANGELOG.md
+        run: |
+          ./generate_changelog.sh "${{ env.MOD_VERSION }}" > CHANGELOG.md
+          echo "Generated changelog:"
+          cat CHANGELOG.md
 
+      # ------------------------------------------------------------
+      # Upload artifacts
+      # ------------------------------------------------------------
       - name: Upload Release Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -76,6 +101,9 @@ jobs:
             forge/build/libs/
             CHANGELOG.md
 
+      # ------------------------------------------------------------
+      # GitHub Release (Draft)
+      # ------------------------------------------------------------
       - name: Create GitHub Release Draft
         uses: softprops/action-gh-release@v2
         with:
