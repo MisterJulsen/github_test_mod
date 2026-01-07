@@ -1,8 +1,22 @@
 {
-    "important": "",
-    "added": "Added",
-    "changed": "Changed",
-    "fixed": "Fixed",
-    "removed": "Removed",
-    "updated": ""
+    "added": {
+        "inputs": ["added", "✨"],
+        "output": "✨"
+    },
+    "fixed": {
+        "inputs": ["fixed", "🐛"],
+        "output": "🐛"
+    },
+    "changed": {
+        "inputs": ["changed", "♻️"],
+        "output": "♻️"
+    },
+    "removed": {
+        "inputs": ["removed", "🔥"],
+        "output": "🔥"
+    },
+    "updated": {
+        "inputs": ["updated", "⬆️"],
+        "output": "⬆️"
+    }
 }
