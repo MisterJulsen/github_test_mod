@@ -85,9 +85,10 @@ jobs:
 
       - name: Generate changelog
         run: |
-          ./generate_changelog.sh "${{ env.MOD_VERSION }}" > CHANGELOG.md
+          ./generate_changelog.sh "${{ env.MOD_VERSION }}"
           echo "Generated changelog:"
           cat CHANGELOG.md
+
 
       # ------------------------------------------------------------
       # Upload artifacts
