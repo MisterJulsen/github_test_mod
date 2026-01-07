@@ -1,0 +1,123 @@
+name: Publish
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  JAVA_VERSION: 21
+
+jobs:
+
+  # ---------------------------------------------------------
+  # 1) BUILD + CHANGELOG + RELEASE DRAFT
+  # ---------------------------------------------------------
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-home-cache-cleanup: true
+
+      - name: Validate Gradle Wrapper Integrity
+        uses: gradle/wrapper-validation-action@v2
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Read version from Gradle
+        id: version
+        run: echo "version=$(./gradlew -q printVersion)" >> $GITHUB_OUTPUT
+
+      - name: Download changelog script
+        run: curl -o generate_changelog.sh https://files.mrjulsen.net/scripts/java/generate_changelog.sh
+
+      - name: Generate changelog
+        run: ./generate_changelog.sh "${{ steps.version.outputs.version }}" > CHANGELOG.md
+
+      - name: Build all platforms
+        run: ./gradlew build
+
+      - name: Create GitHub Release Draft
+        id: create_release
+        uses: actions/create-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          release_name: ${{ steps.version.outputs.version }}
+          draft: true
+          prerelease: ${{ contains(steps.version.outputs.version, 'beta') || contains(steps.version.outputs.version, 'alpha') }}
+          body_path: CHANGELOG.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Fabric JARs
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: fabric/build/libs/
+          asset_name: fabric
+          asset_content_type: application/java-archive
+
+      - name: Upload Forge JARs
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: forge/build/libs/
+          asset_name: forge
+          asset_content_type: application/java-archive
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+
+  # ---------------------------------------------------------
+  # 2) APPROVAL GATE (du prüfst den Draft)
+  # ---------------------------------------------------------
+  approval:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: release
+      url: https://github.com/${{ github.repository }}/releases/tag/${{ needs.build.outputs.version }}
+
+    steps:
+      - name: Waiting for manual approval
+        run: echo "Bitte Release-Draft prüfen und genehmigen."
+
+
+  # ---------------------------------------------------------
+  # 3) FINAL PUBLISH (Modrinth, CurseForge, GitHub Release)
+  # ---------------------------------------------------------
+  publish:
+    needs: approval
+    runs-on: ubuntu-22.04
+    container:
+      image: mcr.microsoft.com/openjdk/jdk:21-ubuntu
+      options: --user root
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Publish Mods (Modrinth + CurseForge + GitHub)
+        run: ./gradlew publishMods
+        env:
+          CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
