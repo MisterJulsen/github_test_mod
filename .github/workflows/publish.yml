@@ -67,9 +67,8 @@ jobs:
 
       - name: Generate release metadata
         run: |
-          MODULE_LIST="${{ env.MODULES }}"
           chmod +x gradlew
-          ./gradlew -q $MODULE_LIST:exportReleaseJar
+          ./gradlew -q exportReleaseJar
 
       - name: Collect release jars from Gradle metadata
         run: |
