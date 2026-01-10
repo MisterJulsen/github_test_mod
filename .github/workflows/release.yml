@@ -44,19 +44,29 @@ jobs:
           gradle-home-cache-cleanup: true
           gradle-version: wrapper
 
-      - name: Build
-        run: |
-          chmod +x gradlew
-          ./gradlew build
+      - name: Make gradlew executable
+        run: chmod +x gradlew
 
-      - name: Load mod version
-        id: config
+      - name: Build
+        run: ./gradlew build
+
+      - name: Read mod version
         run: |
           ./gradlew -q exportMinecraftVersion
           VERSION="$(tr -d '\r\n' < build/minecraft_version_exp.txt)"
           echo "MOD_VERSION=$VERSION" >> "$GITHUB_ENV"
 
-      - name: Generate Changelog
+      - name: Read release config
+        id: config
+        run: |
+          MODULES=$(jq -r '.modules[]' .release-config.json)
+          echo "MODULES<<EOF" >> $GITHUB_ENV
+          for M in $MODULES; do
+            echo "$M/build/libs/*.jar" >> $GITHUB_ENV
+          done
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Generate changelog
         run: |
           sudo apt-get update && sudo apt-get install -y jq
           
@@ -70,16 +80,8 @@ jobs:
           echo "Generated changelog:"
           cat CHANGELOG.md
 
-      - name: Load project data
-        id: config
-        run: |          
-          MODULES=$(jq -r '.modules[]' .release-config.json)
-          echo "MODULES<<EOF" >> $GITHUB_ENV
-          for M in $MODULES; do
-            echo "$M/build/libs/*.jar" >> $GITHUB_ENV
-          done
-          echo "EOF" >> $GITHUB_ENV         
-          
+      - name: Build artifact paths
+        run: |
           MODULES=$(jq -r '.modules[]' .release-config.json)
           echo "ARTIFACT_PATHS<<EOF" >> $GITHUB_ENV
           for M in $MODULES; do
