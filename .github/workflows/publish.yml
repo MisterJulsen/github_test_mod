@@ -42,11 +42,16 @@ jobs:
           fileName: "*"
           out-file-path: "artifacts"
 
+      - name: Generate release metadata
+        run: |
+          MODULE_LIST="${{ env.MODULES }}"
+          ./gradlew $MODULE_LIST:exportReleaseJar
+
       - name: Collect release jars from Gradle metadata
         run: |
-          FILES=$(scripts/collect_release_jars.sh ${{ env.MODULES }})
+          MODULES="${{ env.MODULES }}"
+          FILES=$(scripts/collect_release_jars.sh $MODULES)
           echo "ARTIFACT_FILES=$FILES" >> $GITHUB_ENV
-
 
       - name: Print release summary
         run: |
