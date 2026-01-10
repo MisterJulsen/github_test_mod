@@ -11,7 +11,7 @@ fi
 FILES=""
 
 for M in $MODULES; do
-  META_FILE="$M/release-jar.txt"
+  META_FILE="$M/build/release-jar.txt"
 
   if [ ! -f "$META_FILE" ]; then
     echo "ERROR: $META_FILE not found. Did you run exportReleaseJar in the build workflow?"
