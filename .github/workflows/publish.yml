@@ -32,11 +32,8 @@ jobs:
 
       - name: Read modules
         run: |
-          MODULES=$(jq -r '.modules[]' .release-config.json)
-          echo "MODULES<<EOF" >> $GITHUB_ENV
-          echo "$MODULES" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-
+          MODULES=$(jq -r '.modules[]' .release-config.json | xargs)
+          echo "MODULES=$MODULES" >> $GITHUB_ENV
 
       - name: Download release assets
         uses: robinraju/release-downloader@v1
@@ -47,9 +44,9 @@ jobs:
 
       - name: Collect release jars from Gradle metadata
         run: |
-          MODULE_LIST=$(echo "${{ env.MODULES }}" | tr '\n' ' ' | xargs)          
-          FILES=$(scripts/collect_release_jars.sh "$MODULE_LIST")
+          FILES=$(scripts/collect_release_jars.sh ${{ env.MODULES }})
           echo "ARTIFACT_FILES=$FILES" >> $GITHUB_ENV
+
 
       - name: Print release summary
         run: |

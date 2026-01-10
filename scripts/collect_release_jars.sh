@@ -1,16 +1,14 @@
 #!/usr/bin/env bash
 set -e
 
-MODULES="$1"
-
-if [ -z "$MODULES" ]; then
+if [ "$#" -eq 0 ]; then
   echo "ERROR: No modules provided"
   exit 1
 fi
 
 FILES=""
 
-for M in $MODULES; do
+for M in "$@"; do
   META_FILE="$M/build/release-jar.txt"
 
   if [ ! -f "$META_FILE" ]; then
