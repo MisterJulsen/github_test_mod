@@ -68,6 +68,16 @@ subprojects {
         version.set(mod_version)
         changelog = "Changelog Test"
     }
+
+
+    tasks.register("exportReleaseJar") {
+        dependsOn tasks.remapJar
+        doLast {
+            def file = tasks.remapJar.archiveFile.get().asFile
+            def out = new File("./release-jar.txt")
+            out.text = file.absolutePath
+        }
+    }
 }
 
 tasks.register("javadocAll", Javadoc) {

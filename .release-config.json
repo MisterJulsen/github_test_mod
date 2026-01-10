@@ -5,5 +5,28 @@
   "modules": [
     "fabric",
     "forge"
-  ]
+  ],
+  "release_channels": {
+    "alpha": [
+      "a",
+      "alpha",
+      "snapshot",
+      "test",
+      "experimental"
+    ],
+    "beta": [
+      "b",
+      "beta",
+      "rc",
+      "release-candidate",
+      "candidate",
+      "preview"
+    ],
+    "release": [
+      "r",
+      "release",
+      "stable",
+      "final"
+    ]
+  }
 }
