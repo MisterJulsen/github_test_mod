@@ -44,11 +44,10 @@ jobs:
           gradle-home-cache-cleanup: true
           gradle-version: wrapper
 
-      - name: Make gradlew executable
-        run: chmod +x gradlew
-
       - name: Build
-        run: ./gradlew build
+        run: |
+          chmod +x gradlew
+          ./gradlew build
 
       - name: Read mod version
         run: |
