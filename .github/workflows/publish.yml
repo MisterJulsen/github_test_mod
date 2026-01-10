@@ -47,8 +47,10 @@ jobs:
 
       - name: Collect release jars from Gradle metadata
         run: |
-          FILES=$(scripts/collect_release_jars.sh "${{ env.MODULES }}")
+          MODULE_LIST=$(echo "${{ env.MODULES }}" | tr '\n' ' ' | xargs)          
+          FILES=$(scripts/collect_release_jars.sh "$MODULE_LIST")
           echo "ARTIFACT_FILES=$FILES" >> $GITHUB_ENV
+
       - name: Print release summary
         run: |
           echo "======================================="
