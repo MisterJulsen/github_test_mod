@@ -2,16 +2,9 @@ name: Publish Release
 
 on:
   workflow_dispatch:
-    inputs:
-      branches:
-        description: "Branches to release"
-        required: true
-        type: choice
-        options:
-          - mc/1.18
-          - mc/1.19
-          - mc/1.20
-        default: mc/1.20
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -19,14 +12,12 @@ jobs:
 
     strategy:
       matrix:
-        branch: ${{ fromJson(format('["{0}"]', join(inputs.branches, '","'))) }}
-        java: [ 21 ]
+        java: [21]
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ matrix.branch }}
           fetch-depth: 0
           fetch-tags: true
 
