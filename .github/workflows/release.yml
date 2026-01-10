@@ -1,0 +1,104 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        java: [21]
+
+    steps:
+      # --- Checkout ---
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # --- Java + Gradle Setup ---
+      - name: Setup Java & Gradle
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Setup Caches
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            **/.gradle/loom-cache
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle.properties', '**/libs.versions.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-home-cache-cleanup: true
+          gradle-version: wrapper
+
+      # --- Build + Version export ---
+      - name: Build and read version
+        run: |
+          chmod +x gradlew
+          ./gradlew build -q exportMinecraftVersion
+          VERSION="$(tr -d '\r\n' < build/minecraft_version_exp.txt)"
+          echo "MOD_VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      # --- Install jq + parse release config + build module paths ---
+      - name: Parse release config
+        id: config
+        run: |
+          sudo apt-get update && sudo apt-get install -y jq
+
+          MODULES=$(jq -r '.modules[]' .release-config.json)
+
+          echo "MODULES<<EOF" >> $GITHUB_ENV
+          for M in $MODULES; do
+            echo "$M/build/libs/*.jar" >> $GITHUB_ENV
+          done
+          echo "EOF" >> $GITHUB_ENV
+
+          echo "ARTIFACT_PATHS<<EOF" >> $GITHUB_ENV
+          for M in $MODULES; do
+            echo "$M/build/libs/" >> $GITHUB_ENV
+          done
+          echo "CHANGELOG.md" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      # --- Generate changelog ---
+      - name: Generate changelog
+        run: |
+          curl -fsSL https://files.mrjulsen.net/scripts/java/generate_changelog.sh -o generate_changelog.sh
+          chmod +x generate_changelog.sh
+          ./generate_changelog.sh "${{ env.MOD_VERSION }}"
+          echo "Generated changelog:"
+          cat CHANGELOG.md
+
+      # --- Upload artifacts ---
+      - name: Upload Release Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ env.MOD_VERSION }}
+          path: ${{ env.ARTIFACT_PATHS }}
+
+      # --- Create GitHub Release Draft ---
+      - name: Create GitHub Release Draft
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.MOD_VERSION }}
+          name: ${{ env.MOD_VERSION }}
+          draft: true
+          prerelease: ${{ contains(env.MOD_VERSION, 'beta') || contains(env.MOD_VERSION, 'alpha') }}
+          body_path: CHANGELOG.md
+          files: ${{ env.MODULES }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
