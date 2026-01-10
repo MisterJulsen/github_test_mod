@@ -101,6 +101,7 @@ jobs:
         with:
           tag_name: ${{ env.MOD_VERSION }}
           name: ${{ env.MOD_VERSION }}
+          target_commitish: ${{ github.ref_name }}
           draft: true
           prerelease: ${{ contains(env.MOD_VERSION, 'beta') || contains(env.MOD_VERSION, 'alpha') }}
           body_path: CHANGELOG.md
