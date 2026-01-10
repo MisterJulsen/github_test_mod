@@ -33,7 +33,10 @@ jobs:
       - name: Read modules
         run: |
           MODULES=$(jq -r '.modules[]' .release-config.json)
-          echo "MODULES=$MODULES" >> $GITHUB_ENV
+          echo "MODULES<<EOF" >> $GITHUB_ENV
+          echo "$MODULES" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
 
       - name: Download release assets
         uses: robinraju/release-downloader@v1
