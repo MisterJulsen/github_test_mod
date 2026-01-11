@@ -90,21 +90,42 @@ jobs:
           chmod +x generate_changelog.sh
           ./generate_changelog.sh "${{ env.MOD_VERSION }}"
 
-      - name: Collect release files
+      - name: Upload Release Artifacts (filtered)
         run: |
-          {
-            echo "FILES<<EOF"
-            for module in $(jq -r '.artifacts | keys[]' metadata.json); do
-              FILE=$(jq -r ".artifacts[\"$module\"].filename" metadata.json)
-              FOUND=$(find . -name "$FILE")
-              echo "$FOUND"
+          echo "Reading metadata.json..."
+          cat metadata.json
+
+          mkdir filtered_artifacts
+
+          # Extract filenames from metadata.json
+          for file in $(jq -r '.artifacts[].filename' metadata.json); do
+            echo "Selecting $file"
+            find . -type f -name "$file" -exec cp {} filtered_artifacts/ \;
+          done
+
+          # Optional: include sources + javadoc if they exist
+          for file in $(jq -r '.artifacts[].filename' metadata.json); do
+            base="${file%.jar}"
+
+            for suffix in "-sources.jar" "-javadoc.jar"; do
+              match=$(find . -type f -name "${base}${suffix}")
+              if [ -n "$match" ]; then
+                echo "Including $match"
+                cp "$match" filtered_artifacts/
+              fi
             done
+          done
 
-            # Optional: sources + javadoc
-            find . -name "*-sources.jar" -o -name "*-javadoc.jar" || true
+        shell: bash
 
-            echo "EOF"
-          } >> $GITHUB_ENV
+      - name: Upload Release Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ env.MOD_VERSION }}
+          path: |            
+            filtered_artifacts/*
+            metadata.json
+            CHANGELOG.md
 
 
       # ------------------------------------------------------------
@@ -115,7 +136,7 @@ jobs:
         with:
           name: release-${{ env.MOD_VERSION }}
           path: |
-            ${{ env.FILES }}
+            filtered_artifacts/*
             metadata.json
             CHANGELOG.md
 
