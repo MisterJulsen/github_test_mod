@@ -62,7 +62,7 @@ FIRST=true
 # Iterate modules
 # ------------------------------------------------------------
 for MODULE in $(jq -r '.modules[]' "$CONFIG_FILE"); do
-  META_FILE="$MODULE/build/release-jar.txt"
+  META_FILE="$MODULE/release-jar.txt"
 
   if [[ ! -f "$META_FILE" ]]; then
     echo "ERROR: $META_FILE not found" >&2
