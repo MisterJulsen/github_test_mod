@@ -54,6 +54,10 @@ jobs:
       # Build
       # ------------------------------------------------------------
       - name: Build
+        env:
+          MAVEN_ENDPOINT: ${{ secrets.MAVEN_ENDPOINT }}
+          MAVEN_ACCESS_KEY: ${{ secrets.MAVEN_ACCESS_KEY }}
+          MAVEN_SECRET_KEY: ${{ secrets.MAVEN_SECRET_KEY }}
         run: |
           chmod +x gradlew
           ./gradlew publishS3
