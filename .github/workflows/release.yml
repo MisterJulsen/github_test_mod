@@ -94,21 +94,26 @@ jobs:
         id: collect
         run: |
           MAIN=$(jq -r '.artifacts[].filename' metadata.json)
-          DIR=$(dirname $(find . -name "$MAIN"))
+          MAIN_PATH=$(find . -type f -name "$MAIN" | head -n 1)
 
-          FILES="$DIR/$MAIN"
-
-          # sources
-          if ls "$DIR"/*sources.jar 1> /dev/null 2>&1; then
-            FILES="$FILES $(ls "$DIR"/*sources.jar)"
+          if [ -z "$MAIN_PATH" ]; then
+            echo "ERROR: Could not find main artifact: $MAIN"
+            exit 1
           fi
 
-          # javadoc
-          if ls "$DIR"/*javadoc.jar 1> /dev/null 2>&1; then
-            FILES="$FILES $(ls "$DIR"/*javadoc.jar)"
-          fi
+          DIR=$(dirname "$MAIN_PATH")
+          FILES="$MAIN_PATH"
+          
+          for f in "$DIR"/*sources.jar; do
+            [ -e "$f" ] && FILES="$FILES $f"
+          done
+
+          for f in "$DIR"/*javadoc.jar; do
+            [ -e "$f" ] && FILES="$FILES $f"
+          done
 
           echo "FILES=$FILES" >> $GITHUB_ENV
+
 
 
       # ------------------------------------------------------------
