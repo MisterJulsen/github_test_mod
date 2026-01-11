@@ -93,26 +93,19 @@ jobs:
       - name: Collect release files
         id: collect
         run: |
-          FILES=""
+          echo "FILES<<" >> $GITHUB_ENV
           for module in $(jq -r '.artifacts | keys[]' metadata.json); do
             FILE=$(jq -r ".artifacts[\"$module\"].filename" metadata.json)
             FOUND=$(find . -name "$FILE")
-            if [ -z "$FOUND" ]; then
-              echo "ERROR: Artifact $FILE not found"
-              exit 1
-            fi
-            FILES="$FILES $FOUND"
+            echo "$FOUND" >> $GITHUB_ENV
           done
 
-          # Optional: sources + javadoc, falls vorhanden
-          for f in *-sources.jar *-javadoc.jar; do
-            if [ -f "$f" ]; then
-              FILES="$FILES $f"
-            fi
+          # Optional: sources + javadoc
+          for f in $(find . -name "*-sources.jar" -o -name "*-javadoc.jar"); do
+            echo "$f" >> $GITHUB_ENV
           done
 
-          echo "FILES=$FILES" >> $GITHUB_ENV
-
+          echo "FILES" >> $GITHUB_ENV
 
       # ------------------------------------------------------------
       # Upload Artifacts
@@ -121,7 +114,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-${{ env.MOD_VERSION }}
-          path: ${{ env.FILES }} metadata.json CHANGELOG.md
+          path: |
+            ${{ env.FILES }}
+            metadata.json
+            CHANGELOG.md
 
       # ------------------------------------------------------------
       # GitHub Release (Draft)
@@ -135,6 +131,8 @@ jobs:
           draft: true
           prerelease: ${{ env.RELEASE_CHANNEL != 'release' }}
           body_path: CHANGELOG.md
-          files: ${{ env.FILES }} metadata.json
+          files: |
+            ${{ env.FILES }}
+            metadata.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
