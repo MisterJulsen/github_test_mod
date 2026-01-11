@@ -29,27 +29,28 @@ jobs:
         id: collect
         run: |
           META="artifacts/metadata.json"
-
+          
           VERSION=$(jq -r '.version' "$META")
           MC_VERSION=$(jq -r '.minecraft_version' "$META")
           RELEASE_TYPE=$(jq -r '.release_channel' "$META")
-
+          
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "MC_VERSION=$MC_VERSION" >> $GITHUB_ENV
           echo "RELEASE_TYPE=$RELEASE_TYPE" >> $GITHUB_ENV
-
+          
           # Loader-Liste extrahieren
           LOADERS=$(jq -r '.artifacts[].platform' "$META" | sort -u)
-
-          # Loader als JSON-Array für die Matrix speichern
-          printf '%s\n' $LOADERS | jq -R . | jq -s . > loaders.json
-          echo "loaders=$(cat loaders.json)" >> $GITHUB_OUTPUT
-
+          
+          # Loader als kompaktes JSON-Array speichern
+          LOADERS_JSON=$(printf '%s\n' $LOADERS | jq -R . | jq -s -c .)
+          echo "loaders=$LOADERS_JSON" >> $GITHUB_OUTPUT
+          
           # Dateien pro Loader speichern
           for L in $LOADERS; do
             jq -r --arg L "$L" '.artifacts[] | select(.platform==$L) | .filename' "$META" \
               | sed 's|^|artifacts/|' > "files_$L.txt"
           done
+
 
       - name: Print summary
         run: |
