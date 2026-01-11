@@ -98,9 +98,10 @@ jobs:
         with:
           name: release-${{ env.MOD_VERSION }}
           path: |
-            **/build/libs/*.jar
+            $(cat release-artifacts.txt)
             metadata.json
             CHANGELOG.md
+
 
       # ------------------------------------------------------------
       # GitHub Release (Draft)
@@ -115,7 +116,7 @@ jobs:
           prerelease: ${{ env.RELEASE_CHANNEL != 'release' }}
           body_path: CHANGELOG.md
           files: |
-            **/build/libs/*.jar
+            $(cat release-artifacts.txt)
             metadata.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
