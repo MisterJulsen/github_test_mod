@@ -12,7 +12,6 @@ jobs:
       # ------------------------------------------------------------
       # Checkout (nur für Scripts, nicht für Metadaten!)
       # ------------------------------------------------------------
-
       - name: Checkout correct branch
         uses: actions/checkout@v4
         with:
@@ -25,7 +24,6 @@ jobs:
       # ------------------------------------------------------------
       # Release Assets laden
       # ------------------------------------------------------------
-
       - name: Download release assets
         uses: robinraju/release-downloader@v1
         with:
@@ -34,10 +32,10 @@ jobs:
           out-file-path: artifacts
 
       # ------------------------------------------------------------
-      # Metadata einlesen
+      # Metadata einlesen & Loader/Dateien dynamisch gruppieren
       # ------------------------------------------------------------
-
       - name: Parse metadata.json
+        id: meta
         run: |
           META_FILE="artifacts/metadata.json"
 
@@ -49,19 +47,32 @@ jobs:
           echo "MC_VERSION=$MC_VERSION" >> $GITHUB_ENV
           echo "RELEASE_TYPE=$RELEASE_TYPE" >> $GITHUB_ENV
 
-          echo "ARTIFACT_FILES<<EOF" >> $GITHUB_ENV
-          jq -r '.artifacts[].filename' "$META_FILE" | sed 's|^|artifacts/|' >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+          # Loader-Liste extrahieren
+          LOADERS=$(jq -r '.artifacts[].platform' "$META_FILE" | sort -u)
 
           echo "LOADERS<<EOF" >> $GITHUB_ENV
-          jq -r '.artifacts[].platform' "$META_FILE" | sort -u >> $GITHUB_ENV
+          echo "$LOADERS"
           echo "EOF" >> $GITHUB_ENV
 
+          # JSON-Array für Matrix erzeugen
+          echo "LOADERS_JSON<<EOF" >> $GITHUB_ENV
+          jq -n --argjson arr "$(printf '%s\n' $LOADERS | jq -R . | jq -s .)" '$arr'
+          echo "EOF" >> $GITHUB_ENV
+
+          # Pro Loader die Dateien speichern
+          for LOADER in $LOADERS; do
+            FILES=$(jq -r --arg L "$LOADER" '.artifacts[] | select(.platform==$L) | .filename' "$META_FILE")
+
+            echo "FILES_${LOADER}<<EOF" >> $GITHUB_ENV
+            for F in $FILES; do
+              echo "artifacts/$F"
+            done
+            echo "EOF" >> $GITHUB_ENV
+          done
 
       # ------------------------------------------------------------
       # Release-Zusammenfassung
       # ------------------------------------------------------------
-
       - name: Print release summary
         run: |
           echo "======================================="
@@ -71,7 +82,8 @@ jobs:
           echo "Version:          $VERSION"
           echo "Minecraft:        $MC_VERSION"
           echo "Release Type:     $RELEASE_TYPE"
-          echo "Loaders:          $LOADERS"
+          echo "Loaders:"
+          echo "$LOADERS"
           echo ""
           echo "Changelog:"
           echo "---------------------------------------"
@@ -80,31 +92,63 @@ jobs:
           echo ""
           echo "Artifacts:"
           echo "---------------------------------------"
-          for f in $ARTIFACT_FILES; do
-            echo "$f"
+          for L in $LOADERS; do
+            echo "Loader: $L"
+            eval "FILES=\$FILES_${L}"
+            for f in $FILES; do
+              echo "  $f"
+            done
           done
           echo "---------------------------------------"
           echo ""
           echo "Ready to publish to Modrinth & CurseForge"
           echo "======================================="
 
-      # ------------------------------------------------------------
-      # Publish
-      # ------------------------------------------------------------
+  # ------------------------------------------------------------
+  # Dynamische Veröffentlichung pro Loader
+  # ------------------------------------------------------------
+  publish-per-loader:
+    needs: publish
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        loader: ${{ fromJson(env.LOADERS_JSON) }}
+
+    steps:
+      - name: Checkout correct branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.target_commitish }}
+          fetch-depth: 0
+
+      - name: Download release assets
+        uses: robinraju/release-downloader@v1
+        with:
+          tag: ${{ github.event.release.tag_name }}
+          fileName: "*"
+          out-file-path: artifacts
+
+      - name: Publish for loader ${{ matrix.loader }}
+        run: |
+          echo "Publishing for loader: ${{ matrix.loader }}"
+        shell: bash
 
       - name: Publish to Mod Platforms
         uses: Kir-Antipov/mc-publish@v3.3
         with:
           version: ${{ env.VERSION }}
           changelog: ${{ github.event.release.body }}
-          files: ${{ env.ARTIFACT_FILES }}
+          files: ${{ env['FILES_' + matrix.loader] }}
 
           game-versions: ${{ env.MC_VERSION }}
           version-type: ${{ env.RELEASE_TYPE }}
-          loaders: ${{ env.LOADERS }}
+          loaders: ${{ matrix.loader }}
 
           modrinth-id: ${{ secrets.MODRINTH_ID }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
 
           curseforge-id: ${{ secrets.CF_ID }}
+          curseforge-token: ${{ secrets.CF_TOKEN }}
+
           fail-mode: skip
