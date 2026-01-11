@@ -3,6 +3,7 @@ plugins {
     id 'architectury-plugin' version '3.4-SNAPSHOT'
     id 'com.github.johnrengelman.shadow' version '8.1.1' apply false
     id "me.modmuss50.mod-publish-plugin" version "1.1.0"
+    id "net.mrjulsen.mod-build-tools" version "1.0.0"
 }
 
 architectury {
@@ -19,7 +20,6 @@ subprojects {
     apply plugin: 'dev.architectury.loom'
     apply plugin: 'architectury-plugin'
     apply plugin: 'maven-publish'
-    apply from: "https://files.mrjulsen.net/scripts/java/minecraft_mod_version.gradle"
 
     loom {
         silentMojangMappingsLicense()
@@ -60,27 +60,27 @@ subprojects {
         repositories {
         }
     }
+}
 
-
-    publishMods {
-        type = STABLE
-        file = tasks.remapJar.archiveFile
-        version.set(mod_version)
-        changelog = "Changelog Test"
+modBuildTools {
+    publish {
+        localRepoDir = "${System.getProperty('user.home')}/.m2/github/modsrepo/maven"
+        s3Bucket = "maven"
+        endpointEnv = System.getenv("MAVEN_ENDPOINT")
+        accessKeyEnv = System.getenv("MAVEN_ACCESS_KEY")
+        secretKeyEnv = System.getenv("MAVEN_SECRET_KEY")
+        publishCommon = false
     }
-}
-
-tasks.register("javadocAll", Javadoc) {
-    source subprojects.collect { it.sourceSets.main.allJava }
-    classpath = files(subprojects.collect { it.sourceSets.main.compileClasspath })
-    destinationDir = rootProject.file("docs")
-
-    options.encoding = "UTF-8"
-}
-
-tasks.register("printVersion") {
-    doLast {
-        println(version)
+    javadoc {
+        title = "Test Mod API ${release_channel}-${mod_version}"
+        tags = [
+            "apiNote:a:API Note:",
+            "implNote:a:Impl Note:",
+            "implSpec:a:Impl Spec:",
+            "related:a:Related:",
+            "example:a:Examples:",
+            "side:a:Valid on side:"
+        ]
     }
 }
 

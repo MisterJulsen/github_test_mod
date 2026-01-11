@@ -15,12 +15,18 @@ jobs:
         java: [21]
 
     steps:
+      # ------------------------------------------------------------
+      # Checkout
+      # ------------------------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           fetch-tags: true
 
+      # ------------------------------------------------------------
+      # Java & Gradle
+      # ------------------------------------------------------------
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -44,20 +50,21 @@ jobs:
           gradle-home-cache-cleanup: true
           gradle-version: wrapper
 
+      # ------------------------------------------------------------
+      # Build
+      # ------------------------------------------------------------
       - name: Build
         run: |
           chmod +x gradlew
           ./gradlew build
 
       # ------------------------------------------------------------
-      # Versions & Channel
+      # Resolve Version & Channel
       # ------------------------------------------------------------
-
-      - name: Read mod version
+      - name: Read mod version from Gradle
         run: |
-          ./gradlew -q exportMinecraftVersion
-          VERSION="$(tr -d '\r\n' < build/minecraft_version_exp.txt)"
-          echo "MOD_VERSION=$VERSION" >> "$GITHUB_ENV"
+          VERSION=$(./gradlew -q printModVersionString)
+          echo "MOD_VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Read Gradle properties
         run: |
@@ -68,12 +75,18 @@ jobs:
           echo "RELEASE_CHANNEL=$RELEASE_CHANNEL" >> $GITHUB_ENV
 
       # ------------------------------------------------------------
-      # Changelog
+      # Generate Metadata (Gradle Plugin)
       # ------------------------------------------------------------
+      - name: Generate release metadata
+        run: ./gradlew generateReleaseMetadata
 
+      # ------------------------------------------------------------
+      # Generate Changelog
+      # ------------------------------------------------------------
       - name: Generate changelog
         run: |
-          sudo apt-get update && sudo apt-get install -y jq
+          sudo apt-get update
+          sudo apt-get install -y jq
 
           curl -fsSL \
             https://files.mrjulsen.net/scripts/java/generate_changelog.sh \
@@ -83,55 +96,20 @@ jobs:
           ./generate_changelog.sh "${{ env.MOD_VERSION }}"
 
       # ------------------------------------------------------------
-      # Metadata
+      # Upload Artifacts
       # ------------------------------------------------------------
-
-      - name: Generate release metadata
-        run: |
-          chmod +x scripts/generate_metadata.sh
-          chmod +x scripts/map_release_channel.sh
-
-          scripts/generate_metadata.sh \
-            "${{ env.MOD_VERSION }}" \
-            "${{ env.MC_VERSION }}" \
-            "${{ env.RELEASE_CHANNEL }}"
-
-      - name: Collect release jar globs
-        run: |
-          MODULES=$(jq -r '.modules[]' .release-config.json)
-
-          echo "MODULES<<EOF" >> $GITHUB_ENV
-          for M in $MODULES; do
-            echo "$M/build/libs/*.jar" >> $GITHUB_ENV
-          done
-          echo "EOF" >> $GITHUB_ENV
-
-
-      # ------------------------------------------------------------
-      # Artifact paths
-      # ------------------------------------------------------------
-
-      - name: Build artifact paths
-        run: |
-          MODULES=$(jq -r '.modules[]' .release-config.json)
-          echo "ARTIFACT_PATHS<<EOF" >> $GITHUB_ENV
-          for M in $MODULES; do
-            echo "$M/build/libs/" >> $GITHUB_ENV
-          done
-          echo "CHANGELOG.md" >> $GITHUB_ENV
-          echo "metadata.json" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-
-      # ------------------------------------------------------------
-      # Upload & Release
-      # ------------------------------------------------------------
-
       - name: Upload Release Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: release-${{ env.MOD_VERSION }}
-          path: ${{ env.ARTIFACT_PATHS }}
+          path: |
+            **/build/libs/*.jar
+            metadata.json
+            CHANGELOG.md
 
+      # ------------------------------------------------------------
+      # GitHub Release (Draft)
+      # ------------------------------------------------------------
       - name: Create GitHub Release Draft
         uses: softprops/action-gh-release@v2
         with:
@@ -142,7 +120,7 @@ jobs:
           prerelease: ${{ contains(env.MOD_VERSION, 'beta') || contains(env.MOD_VERSION, 'alpha') }}
           body_path: CHANGELOG.md
           files: |
-            ${{ env.MODULES }}
+            **/build/libs/*.jar
             metadata.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

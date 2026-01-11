@@ -6,6 +6,28 @@
     "fabric",
     "forge"
   ],
+  "changelog_categories": [
+    {
+      "inputs": ["added", "✨"],
+      "output": "✨"
+    },
+    {
+      "inputs": ["fixed", "🐛"],
+      "output": "🐛"
+    },
+    {
+      "inputs": ["changed", "♻️"],
+      "output": "♻️"
+    },
+    {
+      "inputs": ["removed", "🔥"],
+      "output": "🔥"
+    },
+    {
+      "inputs": ["updated", "⬆️"],
+      "output": "⬆️"
+    }
+  ],
   "release_channels": {
     "alpha": [
       "a",
