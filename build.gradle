@@ -60,7 +60,13 @@ subprojects {
         repositories {
         }
     }
+
+    java {
+        withSourcesJar()
+        withJavadocJar()
+    }
 }
+
 
 modBuildTools {
     publish {

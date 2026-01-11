@@ -90,6 +90,30 @@ jobs:
           chmod +x generate_changelog.sh
           ./generate_changelog.sh "${{ env.MOD_VERSION }}"
 
+      - name: Collect release files
+        id: collect
+        run: |
+          FILES=""
+          for module in $(jq -r '.artifacts | keys[]' metadata.json); do
+            FILE=$(jq -r ".artifacts[\"$module\"].filename" metadata.json)
+            FOUND=$(find . -name "$FILE")
+            if [ -z "$FOUND" ]; then
+              echo "ERROR: Artifact $FILE not found"
+              exit 1
+            fi
+            FILES="$FILES $FOUND"
+          done
+
+          # Optional: sources + javadoc, falls vorhanden
+          for f in *-sources.jar *-javadoc.jar; do
+            if [ -f "$f" ]; then
+              FILES="$FILES $f"
+            fi
+          done
+
+          echo "FILES=$FILES" >> $GITHUB_ENV
+
+
       # ------------------------------------------------------------
       # Upload Artifacts
       # ------------------------------------------------------------
@@ -97,11 +121,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-${{ env.MOD_VERSION }}
-          path: |
-            $(cat release-artifacts.txt)
-            metadata.json
-            CHANGELOG.md
-
+          path: ${{ env.FILES }} metadata.json CHANGELOG.md
 
       # ------------------------------------------------------------
       # GitHub Release (Draft)
@@ -115,8 +135,6 @@ jobs:
           draft: true
           prerelease: ${{ env.RELEASE_CHANNEL != 'release' }}
           body_path: CHANGELOG.md
-          files: |
-            $(cat release-artifacts.txt)
-            metadata.json
+          files: ${{ env.FILES }} metadata.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
