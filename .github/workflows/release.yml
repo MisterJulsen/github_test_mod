@@ -93,28 +93,32 @@ jobs:
       - name: Collect release files
         id: collect
         run: |
-          MAIN=$(jq -r '.artifacts[].filename' metadata.json)
-          MAIN_PATH=$(find . -type f -name "$MAIN" | head -n 1)
+          FILES=""
+          for MAIN in $(jq -r '.artifacts[].filename' metadata.json); do
+            echo "Processing $MAIN"
+            MAIN_PATH=$(find . -type f -name "$MAIN" | head -n 1)
 
-          if [ -z "$MAIN_PATH" ]; then
-            echo "ERROR: Could not find main artifact: $MAIN"
-            exit 1
-          fi
+            if [ -z "$MAIN_PATH" ]; then
+              echo "ERROR: Could not find artifact: $MAIN"
+              exit 1
+            fi
 
-          DIR=$(dirname "$MAIN_PATH")
-          FILES="$MAIN_PATH"
-          
-          for f in "$DIR"/*sources.jar; do
-            [ -e "$f" ] && FILES="$FILES $f"
-          done
+            DIR=$(dirname "$MAIN_PATH")
 
-          for f in "$DIR"/*javadoc.jar; do
-            [ -e "$f" ] && FILES="$FILES $f"
+            FILES="$FILES $MAIN_PATH"
+
+            # sources
+            for f in "$DIR"/*sources.jar; do
+              [ -e "$f" ] && FILES="$FILES $f"
+            done
+
+            # javadoc
+            for f in "$DIR"/*javadoc.jar; do
+              [ -e "$f" ] && FILES="$FILES $f"
+            done
           done
 
           echo "FILES=$FILES" >> $GITHUB_ENV
-
-
 
       # ------------------------------------------------------------
       # Upload Artifacts
