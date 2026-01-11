@@ -49,14 +49,26 @@ jobs:
           chmod +x gradlew
           ./gradlew build
 
+      # ------------------------------------------------------------
+      # Versions auslesen
+      # ------------------------------------------------------------
+
       - name: Read mod version
         run: |
           ./gradlew -q exportMinecraftVersion
           VERSION="$(tr -d '\r\n' < build/minecraft_version_exp.txt)"
           echo "MOD_VERSION=$VERSION" >> "$GITHUB_ENV"
 
+      - name: Read Minecraft version
+        run: |
+          MC_VERSION=$(grep '^minecraft_version=' gradle.properties | cut -d'=' -f2)
+          echo "MC_VERSION=$MC_VERSION" >> "$GITHUB_ENV"
+
+      # ------------------------------------------------------------
+      # Release-Konfiguration
+      # ------------------------------------------------------------
+
       - name: Read release config
-        id: config
         run: |
           MODULES=$(jq -r '.modules[]' .release-config.json)
           echo "MODULES<<EOF" >> $GITHUB_ENV
@@ -65,19 +77,38 @@ jobs:
           done
           echo "EOF" >> $GITHUB_ENV
 
+      # ------------------------------------------------------------
+      # Changelog
+      # ------------------------------------------------------------
+
       - name: Generate changelog
         run: |
           sudo apt-get update && sudo apt-get install -y jq
-          
+
           curl -fsSL \
             https://files.mrjulsen.net/scripts/java/generate_changelog.sh \
             -o generate_changelog.sh
-          
+
           chmod +x generate_changelog.sh
-          
           ./generate_changelog.sh "${{ env.MOD_VERSION }}"
+
           echo "Generated changelog:"
           cat CHANGELOG.md
+
+      # ------------------------------------------------------------
+      # Metadata erzeugen
+      # ------------------------------------------------------------
+
+      - name: Generate release metadata
+        run: |
+          chmod +x scripts/generate_metadata.sh
+          scripts/generate_metadata.sh \
+            "${{ env.MOD_VERSION }}" \
+            "${{ env.MC_VERSION }}"
+
+      # ------------------------------------------------------------
+      # Artifact-Pfade sammeln
+      # ------------------------------------------------------------
 
       - name: Build artifact paths
         run: |
@@ -87,13 +118,22 @@ jobs:
             echo "$M/build/libs/" >> $GITHUB_ENV
           done
           echo "CHANGELOG.md" >> $GITHUB_ENV
+          echo "metadata.json" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
+
+      # ------------------------------------------------------------
+      # Artifacts hochladen
+      # ------------------------------------------------------------
 
       - name: Upload Release Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: release-${{ env.MOD_VERSION }}
           path: ${{ env.ARTIFACT_PATHS }}
+
+      # ------------------------------------------------------------
+      # GitHub Release Draft
+      # ------------------------------------------------------------
 
       - name: Create GitHub Release Draft
         uses: softprops/action-gh-release@v2
@@ -104,6 +144,8 @@ jobs:
           draft: true
           prerelease: ${{ contains(env.MOD_VERSION, 'beta') || contains(env.MOD_VERSION, 'alpha') }}
           body_path: CHANGELOG.md
-          files: ${{ env.MODULES }}
+          files: |
+            ${{ env.MODULES }}
+            metadata.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
