@@ -153,4 +153,4 @@ jobs:
           curseforge-id: ${{ secrets.CF_ID }}
           curseforge-token: ${{ secrets.CF_TOKEN }}
 
-          fail-mode: continue
+          fail-mode: skip
