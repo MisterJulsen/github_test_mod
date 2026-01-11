@@ -9,72 +9,64 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # ------------------------------------------------------------
+      # Checkout (nur für Scripts, nicht für Metadaten!)
+      # ------------------------------------------------------------
+
       - name: Checkout correct branch
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.release.target_commitish }}
           fetch-depth: 0
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 21
-
-      - name: Cache Gradle & Loom
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-            **/.gradle/loom-cache
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle.properties', '**/libs.versions.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-home-cache-cleanup: true
-          gradle-version: wrapper
-
       - name: Make scripts executable
         run: chmod +x scripts/*.sh
 
-      - name: Read Gradle properties
-        run: |
-          MC_VERSION=$(grep '^minecraft_version=' gradle.properties | cut -d'=' -f2)
-          RELEASE_CHANNEL=$(grep '^release_channel=' gradle.properties | cut -d'=' -f2)
-          echo "MC_VERSION=$MC_VERSION" >> $GITHUB_ENV
-          echo "RELEASE_CHANNEL=$RELEASE_CHANNEL" >> $GITHUB_ENV
-
-      - name: Determine release type
-        run: |
-          TYPE=$(scripts/map_release_channel.sh "${{ env.RELEASE_CHANNEL }}")
-          echo "RELEASE_TYPE=$TYPE" >> $GITHUB_ENV
-
-      - name: Read modules
-        run: |
-          MODULES=$(jq -r '.modules[]' .release-config.json | xargs)
-          echo "MODULES=$MODULES" >> $GITHUB_ENV
+      # ------------------------------------------------------------
+      # Release Assets laden
+      # ------------------------------------------------------------
 
       - name: Download release assets
         uses: robinraju/release-downloader@v1
         with:
           tag: ${{ github.event.release.tag_name }}
           fileName: "*"
-          out-file-path: "artifacts"
+          out-file-path: artifacts
 
-      - name: Generate release metadata
-        run: |
-          chmod +x gradlew
-          ./gradlew -q exportReleaseJar
+      # ------------------------------------------------------------
+      # Metadata einlesen
+      # ------------------------------------------------------------
 
-      - name: Collect release jars from Gradle metadata
+      - name: Parse metadata.json
         run: |
-          MODULES="${{ env.MODULES }}"
-          FILES=$(scripts/collect_release_jars.sh $MODULES)
+          META_FILE="artifacts/metadata.json"
+
+          if [ ! -f "$META_FILE" ]; then
+            echo "ERROR: metadata.json not found in release assets" >&2
+            exit 1
+          fi
+
+          VERSION=$(jq -r '.version' "$META_FILE")
+          MC_VERSION=$(jq -r '.minecraft_version' "$META_FILE")
+          RELEASE_TYPE=$(jq -r '.release_channel' "$META_FILE")
+
+          FILES=$(jq -r '.artifacts[].filename' "$META_FILE" \
+            | sed 's|^|artifacts/|' \
+            | xargs)
+
+          LOADERS=$(jq -r '.artifacts[].platform' "$META_FILE" \
+            | sort -u \
+            | xargs)
+
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "MC_VERSION=$MC_VERSION" >> $GITHUB_ENV
+          echo "RELEASE_TYPE=$RELEASE_TYPE" >> $GITHUB_ENV
           echo "ARTIFACT_FILES=$FILES" >> $GITHUB_ENV
+          echo "LOADERS=$LOADERS" >> $GITHUB_ENV
+
+      # ------------------------------------------------------------
+      # Release-Zusammenfassung
+      # ------------------------------------------------------------
 
       - name: Print release summary
         run: |
@@ -82,10 +74,10 @@ jobs:
           echo "           RELEASE SUMMARY"
           echo "======================================="
           echo ""
-          echo "Version:          ${{ github.event.release.tag_name }}"
-          echo "Minecraft:        ${{ env.MC_VERSION }}"
-          echo "Release Type:     ${{ env.RELEASE_TYPE }}"
-          echo "Platforms:        ${{ env.MODULES }}"
+          echo "Version:          $VERSION"
+          echo "Minecraft:        $MC_VERSION"
+          echo "Release Type:     $RELEASE_TYPE"
+          echo "Loaders:          $LOADERS"
           echo ""
           echo "Changelog:"
           echo "---------------------------------------"
@@ -94,7 +86,7 @@ jobs:
           echo ""
           echo "Artifacts:"
           echo "---------------------------------------"
-          for f in ${{ env.ARTIFACT_FILES }}; do
+          for f in $ARTIFACT_FILES; do
             echo "$f"
           done
           echo "---------------------------------------"
@@ -102,16 +94,20 @@ jobs:
           echo "Ready to publish to Modrinth & CurseForge"
           echo "======================================="
 
+      # ------------------------------------------------------------
+      # Publish
+      # ------------------------------------------------------------
+
       - name: Publish to Mod Platforms
         uses: Kir-Antipov/mc-publish@v3.3
         with:
-          version: ${{ github.event.release.tag_name }}
+          version: ${{ env.VERSION }}
           changelog: ${{ github.event.release.body }}
           files: ${{ env.ARTIFACT_FILES }}
 
           game-versions: ${{ env.MC_VERSION }}
           version-type: ${{ env.RELEASE_TYPE }}
-          loaders: ${{ env.MODULES }}
+          loaders: ${{ env.LOADERS }}
 
           modrinth-id: ${{ secrets.MODRINTH_ID }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
