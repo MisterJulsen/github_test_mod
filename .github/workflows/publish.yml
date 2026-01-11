@@ -107,4 +107,4 @@ jobs:
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
 
           curseforge-id: ${{ secrets.CF_ID }}
-          curseforge-token: ${{ secrets.CF_TOKEN }}
+          fail-mode: skip
