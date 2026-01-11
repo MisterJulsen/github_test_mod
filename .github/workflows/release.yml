@@ -91,21 +91,21 @@ jobs:
           ./generate_changelog.sh "${{ env.MOD_VERSION }}"
 
       - name: Collect release files
-        id: collect
         run: |
-          echo "FILES<<" >> $GITHUB_ENV
-          for module in $(jq -r '.artifacts | keys[]' metadata.json); do
-            FILE=$(jq -r ".artifacts[\"$module\"].filename" metadata.json)
-            FOUND=$(find . -name "$FILE")
-            echo "$FOUND" >> $GITHUB_ENV
-          done
+          {
+            echo "FILES<<EOF"
+            for module in $(jq -r '.artifacts | keys[]' metadata.json); do
+              FILE=$(jq -r ".artifacts[\"$module\"].filename" metadata.json)
+              FOUND=$(find . -name "$FILE")
+              echo "$FOUND"
+            done
 
-          # Optional: sources + javadoc
-          for f in $(find . -name "*-sources.jar" -o -name "*-javadoc.jar"); do
-            echo "$f" >> $GITHUB_ENV
-          done
+            # Optional: sources + javadoc
+            find . -name "*-sources.jar" -o -name "*-javadoc.jar" || true
 
-          echo "FILES" >> $GITHUB_ENV
+            echo "EOF"
+          } >> $GITHUB_ENV
+
 
       # ------------------------------------------------------------
       # Upload Artifacts
