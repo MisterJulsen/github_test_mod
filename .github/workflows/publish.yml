@@ -12,9 +12,6 @@ jobs:
       loaders: ${{ steps.collect.outputs.loaders }}
 
     steps:
-      # ------------------------------------------------------------
-      # Checkout (nur für Scripts, nicht für Metadaten!)
-      # ------------------------------------------------------------
       - name: Checkout correct branch
         uses: actions/checkout@v4
         with:
@@ -24,9 +21,6 @@ jobs:
       - name: Make scripts executable
         run: chmod +x scripts/*.sh
 
-      # ------------------------------------------------------------
-      # Release Assets laden
-      # ------------------------------------------------------------
       - name: Download release assets
         uses: robinraju/release-downloader@v1
         with:
@@ -34,9 +28,6 @@ jobs:
           fileName: "*"
           out-file-path: artifacts
 
-      # ------------------------------------------------------------
-      # Metadata einlesen & Loader/Dateien dynamisch gruppieren
-      # ------------------------------------------------------------
       - name: Parse metadata.json
         id: collect
         run: |
@@ -63,9 +54,6 @@ jobs:
               | sed 's|^|artifacts/|' > "files_$L.txt"
           done
 
-      # ------------------------------------------------------------
-      # Loader- und Datei-Infos zwischen Jobs übertragen
-      # ------------------------------------------------------------
       - name: Upload loader data
         uses: actions/upload-artifact@v4
         with:
@@ -74,9 +62,6 @@ jobs:
             loaders.json
             files_*.txt
 
-      # ------------------------------------------------------------
-      # Release-Zusammenfassung
-      # ------------------------------------------------------------
       - name: Print release summary
         run: |
           echo "======================================="
@@ -97,9 +82,6 @@ jobs:
           done
           echo "======================================="
 
-  # ------------------------------------------------------------
-  # Dynamische Veröffentlichung pro Loader
-  # ------------------------------------------------------------
   publish:
     needs: prepare
     runs-on: ubuntu-latest
