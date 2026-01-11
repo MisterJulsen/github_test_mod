@@ -5,25 +5,19 @@ on:
     types: [published]
 
 jobs:
-  publish:
+  prepare:
     runs-on: ubuntu-latest
 
+    outputs:
+      loaders: ${{ steps.collect.outputs.loaders }}
+
     steps:
-      # ------------------------------------------------------------
-      # Checkout (nur für Scripts, nicht für Metadaten!)
-      # ------------------------------------------------------------
       - name: Checkout correct branch
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.release.target_commitish }}
           fetch-depth: 0
 
-      - name: Make scripts executable
-        run: chmod +x scripts/*.sh
-
-      # ------------------------------------------------------------
-      # Release Assets laden
-      # ------------------------------------------------------------
       - name: Download release assets
         uses: robinraju/release-downloader@v1
         with:
@@ -31,89 +25,53 @@ jobs:
           fileName: "*"
           out-file-path: artifacts
 
-      # ------------------------------------------------------------
-      # Metadata einlesen & Loader/Dateien dynamisch gruppieren
-      # ------------------------------------------------------------
       - name: Parse metadata.json
-        id: meta
+        id: collect
         run: |
-          META_FILE="artifacts/metadata.json"
+          META="artifacts/metadata.json"
 
-          VERSION=$(jq -r '.version' "$META_FILE")
-          MC_VERSION=$(jq -r '.minecraft_version' "$META_FILE")
-          RELEASE_TYPE=$(jq -r '.release_channel' "$META_FILE")
+          VERSION=$(jq -r '.version' "$META")
+          MC_VERSION=$(jq -r '.minecraft_version' "$META")
+          RELEASE_TYPE=$(jq -r '.release_channel' "$META")
 
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "MC_VERSION=$MC_VERSION" >> $GITHUB_ENV
           echo "RELEASE_TYPE=$RELEASE_TYPE" >> $GITHUB_ENV
 
           # Loader-Liste extrahieren
-          LOADERS=$(jq -r '.artifacts[].platform' "$META_FILE" | sort -u)
+          LOADERS=$(jq -r '.artifacts[].platform' "$META" | sort -u)
 
-          echo "LOADERS<<EOF" >> $GITHUB_ENV
-          echo "$LOADERS"
-          echo "EOF" >> $GITHUB_ENV
+          # Loader als JSON-Array für die Matrix speichern
+          printf '%s\n' $LOADERS | jq -R . | jq -s . > loaders.json
+          echo "loaders=$(cat loaders.json)" >> $GITHUB_OUTPUT
 
-          # JSON-Array für Matrix erzeugen
-          echo "LOADERS_JSON<<EOF" >> $GITHUB_ENV
-          jq -n --argjson arr "$(printf '%s\n' $LOADERS | jq -R . | jq -s .)" '$arr'
-          echo "EOF" >> $GITHUB_ENV
-
-          # Pro Loader die Dateien speichern
-          for LOADER in $LOADERS; do
-            FILES=$(jq -r --arg L "$LOADER" '.artifacts[] | select(.platform==$L) | .filename' "$META_FILE")
-
-            echo "FILES_${LOADER}<<EOF" >> $GITHUB_ENV
-            for F in $FILES; do
-              echo "artifacts/$F"
-            done
-            echo "EOF" >> $GITHUB_ENV
+          # Dateien pro Loader speichern
+          for L in $LOADERS; do
+            jq -r --arg L "$L" '.artifacts[] | select(.platform==$L) | .filename' "$META" \
+              | sed 's|^|artifacts/|' > "files_$L.txt"
           done
 
-      # ------------------------------------------------------------
-      # Release-Zusammenfassung
-      # ------------------------------------------------------------
-      - name: Print release summary
+      - name: Print summary
         run: |
-          echo "======================================="
-          echo "           RELEASE SUMMARY"
-          echo "======================================="
-          echo ""
-          echo "Version:          $VERSION"
-          echo "Minecraft:        $MC_VERSION"
-          echo "Release Type:     $RELEASE_TYPE"
+          echo "Version: $VERSION"
+          echo "Minecraft: $MC_VERSION"
+          echo "Release Type: $RELEASE_TYPE"
           echo "Loaders:"
-          echo "$LOADERS"
-          echo ""
-          echo "Changelog:"
-          echo "---------------------------------------"
-          echo "${{ github.event.release.body }}"
-          echo "---------------------------------------"
+          cat loaders.json
           echo ""
           echo "Artifacts:"
-          echo "---------------------------------------"
-          for L in $LOADERS; do
-            echo "Loader: $L"
-            eval "FILES=\$FILES_${L}"
-            for f in $FILES; do
-              echo "  $f"
-            done
+          for f in files_*.txt; do
+            echo "== ${f#files_}"
+            cat "$f"
           done
-          echo "---------------------------------------"
-          echo ""
-          echo "Ready to publish to Modrinth & CurseForge"
-          echo "======================================="
 
-  # ------------------------------------------------------------
-  # Dynamische Veröffentlichung pro Loader
-  # ------------------------------------------------------------
-  publish-per-loader:
-    needs: publish
+  publish:
+    needs: prepare
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
-        loader: ${{ fromJson(env.LOADERS_JSON) }}
+        loader: ${{ fromJson(needs.prepare.outputs.loaders) }}
 
     steps:
       - name: Checkout correct branch
@@ -129,17 +87,21 @@ jobs:
           fileName: "*"
           out-file-path: artifacts
 
-      - name: Publish for loader ${{ matrix.loader }}
+      - name: Load files for loader
+        id: files
         run: |
-          echo "Publishing for loader: ${{ matrix.loader }}"
-        shell: bash
+          LOADER="${{ matrix.loader }}"
+          FILELIST=$(cat "files_${LOADER}.txt")
+          echo "files<<EOF" >> $GITHUB_ENV
+          echo "$FILELIST" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
-      - name: Publish to Mod Platforms
+      - name: Publish ${{ matrix.loader }}
         uses: Kir-Antipov/mc-publish@v3.3
         with:
           version: ${{ env.VERSION }}
           changelog: ${{ github.event.release.body }}
-          files: ${{ env['FILES_' + matrix.loader] }}
+          files: ${{ env.files }}
 
           game-versions: ${{ env.MC_VERSION }}
           version-type: ${{ env.RELEASE_TYPE }}
