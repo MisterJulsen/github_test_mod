@@ -41,28 +41,22 @@ jobs:
         run: |
           META_FILE="artifacts/metadata.json"
 
-          if [ ! -f "$META_FILE" ]; then
-            echo "ERROR: metadata.json not found in release assets" >&2
-            exit 1
-          fi
-
           VERSION=$(jq -r '.version' "$META_FILE")
           MC_VERSION=$(jq -r '.minecraft_version' "$META_FILE")
           RELEASE_TYPE=$(jq -r '.release_channel' "$META_FILE")
 
-          FILES=$(jq -r '.artifacts[].filename' "$META_FILE" \
-            | sed 's|^|artifacts/|' \
-            | xargs)
-
-          LOADERS=$(jq -r '.artifacts[].platform' "$META_FILE" \
-            | sort -u \
-            | xargs)
-
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "MC_VERSION=$MC_VERSION" >> $GITHUB_ENV
           echo "RELEASE_TYPE=$RELEASE_TYPE" >> $GITHUB_ENV
-          echo "ARTIFACT_FILES=$FILES" >> $GITHUB_ENV
-          echo "LOADERS=$LOADERS" >> $GITHUB_ENV
+
+          echo "ARTIFACT_FILES<<EOF" >> $GITHUB_ENV
+          jq -r '.artifacts[].filename' "$META_FILE" | sed 's|^|artifacts/|' >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+          echo "LOADERS<<EOF" >> $GITHUB_ENV
+          jq -r '.artifacts[].platform' "$META_FILE" | sort -u >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
 
       # ------------------------------------------------------------
       # Release-Zusammenfassung
