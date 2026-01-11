@@ -56,29 +56,20 @@ jobs:
       - name: Build
         run: |
           chmod +x gradlew
-          ./gradlew build
+          ./gradlew publishS3
 
       # ------------------------------------------------------------
-      # Resolve Version & Channel
+      # Read metadata.json into env
       # ------------------------------------------------------------
-      - name: Read mod version from Gradle
-        run: |
-          VERSION=$(./gradlew -q printModVersionString)
+      - name: Read metadata
+        run: |          
+          VERSION=$(jq -r '.version' metadata.json)
+          MC_VERSION=$(jq -r '.minecraft_version' metadata.json)
+          RELEASE_CHANNEL=$(jq -r '.release_channel' metadata.json)
+
           echo "MOD_VERSION=$VERSION" >> $GITHUB_ENV
-
-      - name: Read Gradle properties
-        run: |
-          MC_VERSION=$(grep '^minecraft_version=' gradle.properties | cut -d'=' -f2)
-          RELEASE_CHANNEL=$(grep '^release_channel=' gradle.properties | cut -d'=' -f2)
-
           echo "MC_VERSION=$MC_VERSION" >> $GITHUB_ENV
           echo "RELEASE_CHANNEL=$RELEASE_CHANNEL" >> $GITHUB_ENV
-
-      # ------------------------------------------------------------
-      # Generate Metadata (Gradle Plugin)
-      # ------------------------------------------------------------
-      - name: Generate release metadata
-        run: ./gradlew generateReleaseMetadata
 
       # ------------------------------------------------------------
       # Generate Changelog
@@ -117,7 +108,7 @@ jobs:
           name: ${{ env.MOD_VERSION }}
           target_commitish: ${{ github.ref_name }}
           draft: true
-          prerelease: ${{ contains(env.MOD_VERSION, 'beta') || contains(env.MOD_VERSION, 'alpha') }}
+          prerelease: ${{ env.RELEASE_CHANNEL != 'release' }}
           body_path: CHANGELOG.md
           files: |
             **/build/libs/*.jar
