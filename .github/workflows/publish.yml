@@ -32,27 +32,36 @@ jobs:
         id: collect
         run: |
           META="artifacts/metadata.json"
-
-          VERSION=$(jq -r '.version' "$META")
+          
           MC_VERSION=$(jq -r '.minecraft_version' "$META")
+          MOD_VERSION=$(jq -r '.mod_version' "$META")
+          FULL_VERSION=$(jq -r '.full_version' "$META")
+          MOD_NAME=$(jq -r '.display_name' "$META")
           RELEASE_TYPE=$(jq -r '.release_channel' "$META")
-
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          
           echo "MC_VERSION=$MC_VERSION" >> $GITHUB_ENV
+          echo "MOD_VERSION=$MOD_VERSION" >> $GITHUB_ENV
+          echo "FULL_VERSION=$FULL_VERSION" >> $GITHUB_ENV
+          echo "MOD_NAME=$MOD_NAME" >> $GITHUB_ENV
           echo "RELEASE_TYPE=$RELEASE_TYPE" >> $GITHUB_ENV
-
-          # Loader-Liste extrahieren
+          
           LOADERS=$(jq -r '.artifacts[].platform' "$META" | sort -u)
-
-          # Loader als kompaktes JSON-Array speichern
           LOADERS_JSON=$(printf '%s\n' $LOADERS | jq -R . | jq -s -c .)
           echo "loaders=$LOADERS_JSON" >> $GITHUB_OUTPUT
-
-          # Dateien pro Loader speichern
+          
           for L in $LOADERS; do
             jq -r --arg L "$L" '.artifacts[] | select(.platform==$L) | .filename' "$META" \
               | sed 's|^|artifacts/|' > "files_$L.txt"
+          
+            for f in artifacts/*${L}*sources.jar; do
+              [ -f "$f" ] && echo "$f" >> "files_$L.txt"
+            done
+          
+            for f in artifacts/*${L}*javadoc.jar; do
+              [ -f "$f" ] && echo "$f" >> "files_$L.txt"
+            done
           done
+
 
       - name: Upload loader data
         uses: actions/upload-artifact@v4
@@ -68,8 +77,9 @@ jobs:
           echo "           RELEASE SUMMARY"
           echo "======================================="
           echo ""
-          echo "Version:          $VERSION"
           echo "Minecraft:        $MC_VERSION"
+          echo "Mod Version:      $MOD_VERSION"
+          echo "Full Version:     $FULL_VERSION"
           echo "Release Type:     $RELEASE_TYPE"
           echo ""
           echo "Loaders:"
@@ -121,13 +131,14 @@ jobs:
       - name: Publish ${{ matrix.loader }}
         uses: Kir-Antipov/mc-publish@v3.3
         with:
-          version: ${{ env.VERSION }}
+          name: ${{ env.MOD_NAME }}-${{ env.MOD_VERSION }}-${{ matrix.loader }}-${{ env.MC_VERSION }}
+          version: ${{ env.MOD_VERSION }}
+          version-type: ${{ env.RELEASE_TYPE }}
+          game-versions: ${{ env.MC_VERSION }}
+          loaders: ${{ matrix.loader }}
+
           changelog: ${{ github.event.release.body }}
           files: ${{ env.files }}
-
-          game-versions: ${{ env.MC_VERSION }}
-          version-type: ${{ env.RELEASE_TYPE }}
-          loaders: ${{ matrix.loader }}
 
           modrinth-id: ${{ secrets.MODRINTH_ID }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
