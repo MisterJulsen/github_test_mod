@@ -7,6 +7,11 @@ on:
         description: "Reset Cache"
         required: false
         type: boolean
+      publish_maven:
+        description: "Publish Maven (S3 Storage)"
+        required: false
+        type: boolean
+        default: true
 
 
 permissions:
@@ -68,7 +73,15 @@ jobs:
           MAVEN_SECRET_KEY: ${{ secrets.MAVEN_SECRET_KEY }}
         run: |
           chmod +x gradlew
-          ./gradlew publishS3
+          
+          if [ "${{ github.event.inputs.publish_maven }}" = "true" ]; then
+            echo "Publishing to Maven (S3)…"
+            ./gradlew publishS3
+          else
+            echo "Publishing locally…"
+            ./gradlew publishLocal
+          fi
+
 
       # ------------------------------------------------------------
       # Read metadata.json into env
