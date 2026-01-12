@@ -8,7 +8,12 @@ on:
         required: false
         type: boolean
       publish_maven:
-        description: "Publish Maven (S3 Storage)"
+        description: "Publish Maven (S3)"
+        required: false
+        type: boolean
+        default: true
+      trigger_mod_publish:
+        description: "Publish Mods on CurseForge/Modrinth"
         required: false
         type: boolean
         default: true
