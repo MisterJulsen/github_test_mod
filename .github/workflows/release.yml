@@ -147,6 +147,13 @@ jobs:
           done
           echo "EOF" >> $GITHUB_ENV
 
+      - name: Load changelog
+        id: changelog
+        run: |
+          CONTENT=$(cat CHANGELOG.md)
+          echo "content<<EOF" >> $GITHUB_OUTPUT
+          echo "$CONTENT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       # ------------------------------------------------------------
       # Upload Artifacts
@@ -167,15 +174,16 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.FULL_VERSION }}
-          name: ${{ env.mod_name }} ${{ env.MOD_VERSION }}
+          name: ${{ env.MOD_NAME }} ${{ env.MOD_VERSION }}
           target_commitish: ${{ github.ref_name }}
           draft: true
           prerelease: ${{ env.RELEASE_CHANNEL != 'release' }}
           body: |
             ${{ github.event.inputs.trigger_mod_publish == 'false' && '[skip-mod-publish]' || '' }}
-            $(cat CHANGELOG.md)
+            ${{ steps.changelog.outputs.content }}
           files: |
             ${{ env.FILES }}
             metadata.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
