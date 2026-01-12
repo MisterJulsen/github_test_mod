@@ -82,23 +82,41 @@ jobs:
             ./gradlew publishLocal
           fi
 
-
-      # ------------------------------------------------------------
-      # Read metadata.json into env
-      # ------------------------------------------------------------
       - name: Read metadata
         run: |
+          MOD_ID=$(jq -r '.mod_id' metadata.json)
           MOD_NAME=$(jq -r '.display_name' metadata.json)
           MC_VERSION=$(jq -r '.minecraft_version' metadata.json)
           MOD_VERSION=$(jq -r '.mod_version' metadata.json)
           FULL_VERSION=$(jq -r '.full_version' metadata.json)
           RELEASE_CHANNEL=$(jq -r '.release_channel' metadata.json)
 
+          # Loaders → Platforms string
+          LOADERS=$(jq -r '.loaders[]' metadata.json | tr '[:lower:]' '[:upper:]')
+          PLATFORM_STRING="[$(echo $LOADERS | tr ' ' '/')]"
+
+          # Load release title format from build config
+          TITLE_FORMAT=$(jq -r '.github_release_title_format' .mod-build-config.json)
+
+          # Replace placeholders
+          RELEASE_TITLE=$TITLE_FORMAT
+          RELEASE_TITLE=${RELEASE_TITLE//\{MOD_ID\}/$MOD_ID}
+          RELEASE_TITLE=${RELEASE_TITLE//\{MOD_NAME\}/$MOD_NAME}
+          RELEASE_TITLE=${RELEASE_TITLE//\{MOD_VERSION\}/$MOD_VERSION}
+          RELEASE_TITLE=${RELEASE_TITLE//\{FULL_VERSION\}/$FULL_VERSION}
+          RELEASE_TITLE=${RELEASE_TITLE//\{MC_VERSION\}/$MC_VERSION}
+          RELEASE_TITLE=${RELEASE_TITLE//\{RELEASE_CHANNEL\}/$RELEASE_CHANNEL}
+          RELEASE_TITLE=${RELEASE_TITLE//\{PLATFORMS\}/$PLATFORM_STRING}
+
+          echo "MOD_ID=$MOD_ID" >> $GITHUB_ENV
           echo "MOD_NAME=$MOD_NAME" >> $GITHUB_ENV
           echo "MC_VERSION=$MC_VERSION" >> $GITHUB_ENV
           echo "MOD_VERSION=$MOD_VERSION" >> $GITHUB_ENV
           echo "FULL_VERSION=$FULL_VERSION" >> $GITHUB_ENV
           echo "RELEASE_CHANNEL=$RELEASE_CHANNEL" >> $GITHUB_ENV
+          echo "PLATFORMS=$PLATFORM_STRING" >> $GITHUB_ENV
+          echo "RELEASE_TITLE=$RELEASE_TITLE" >> $GITHUB_ENV
+
 
       # ------------------------------------------------------------
       # Generate Changelog
@@ -174,7 +192,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.FULL_VERSION }}
-          name: ${{ env.MOD_NAME }} ${{ env.MOD_VERSION }}
+          name: ${{ env.RELEASE_TITLE }}
           target_commitish: ${{ github.ref_name }}
           draft: true
           prerelease: ${{ env.RELEASE_CHANNEL != 'release' }}

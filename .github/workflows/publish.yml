@@ -35,18 +35,39 @@ jobs:
         run: |
           META="artifacts/metadata.json"
           
+          MOD_ID=$(jq -r '.mod_id' "$META")
+          MOD_NAME=$(jq -r '.display_name' "$META")
           MC_VERSION=$(jq -r '.minecraft_version' "$META")
           MOD_VERSION=$(jq -r '.mod_version' "$META")
           FULL_VERSION=$(jq -r '.full_version' "$META")
-          MOD_NAME=$(jq -r '.display_name' "$META")
-          RELEASE_TYPE=$(jq -r '.release_channel' "$META")
-          
+          RELEASE_CHANNEL=$(jq -r '.release_channel' "$META")
+
+          # Loaders → Platforms string
+          LOADERS=$(jq -r '.loaders[]' "$META" | tr '[:lower:]' '[:upper:]')
+          PLATFORM_STRING="[$(echo $LOADERS | tr ' ' '/')]"
+
+          # Load release title format from build config
+          TITLE_FORMAT=$(jq -r '.mod_release_title_format' .mod-build-config.json)
+
+          # Replace placeholders
+          RELEASE_TITLE=$TITLE_FORMAT
+          RELEASE_TITLE=${RELEASE_TITLE//\{MOD_ID\}/$MOD_ID}
+          RELEASE_TITLE=${RELEASE_TITLE//\{MOD_NAME\}/$MOD_NAME}
+          RELEASE_TITLE=${RELEASE_TITLE//\{MOD_VERSION\}/$MOD_VERSION}
+          RELEASE_TITLE=${RELEASE_TITLE//\{FULL_VERSION\}/$FULL_VERSION}
+          RELEASE_TITLE=${RELEASE_TITLE//\{MC_VERSION\}/$MC_VERSION}
+          RELEASE_TITLE=${RELEASE_TITLE//\{RELEASE_CHANNEL\}/$RELEASE_CHANNEL}
+          RELEASE_TITLE=${RELEASE_TITLE//\{PLATFORMS\}/$PLATFORM_STRING}
+
+          echo "MOD_ID=$MOD_ID" >> $GITHUB_ENV
+          echo "MOD_NAME=$MOD_NAME" >> $GITHUB_ENV
           echo "MC_VERSION=$MC_VERSION" >> $GITHUB_ENV
           echo "MOD_VERSION=$MOD_VERSION" >> $GITHUB_ENV
           echo "FULL_VERSION=$FULL_VERSION" >> $GITHUB_ENV
-          echo "MOD_NAME=$MOD_NAME" >> $GITHUB_ENV
-          echo "RELEASE_TYPE=$RELEASE_TYPE" >> $GITHUB_ENV
-          
+          echo "RELEASE_CHANNEL=$RELEASE_CHANNEL" >> $GITHUB_ENV
+          echo "PLATFORMS=$PLATFORM_STRING" >> $GITHUB_ENV
+          echo "RELEASE_TITLE=$RELEASE_TITLE" >> $GITHUB_ENV
+                    
           LOADERS=$(jq -r '.artifacts[].platform' "$META" | sort -u)
           LOADERS_JSON=$(printf '%s\n' $LOADERS | jq -R . | jq -s -c .)
           echo "loaders=$LOADERS_JSON" >> $GITHUB_OUTPUT
@@ -130,10 +151,16 @@ jobs:
           echo "$FILELIST" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
+      - name: Create release title
+        id: collect
+        run: |          
+          MOD_RELEASE_TITLE=$RELEASE_TITLE
+          MOD_RELEASE_TITLE=${MOD_RELEASE_TITLE//\{LOADER\}/$LOADER}
+
       - name: Publish ${{ matrix.loader }}
         uses: Kir-Antipov/mc-publish@v3.3
         with:
-          name: ${{ env.MOD_NAME }}-${{ env.MOD_VERSION }}-${{ matrix.loader }}-${{ env.MC_VERSION }}
+          name: ${{ env.MOD_RELEASE_TITLE }}
           version: ${{ env.MOD_VERSION }}
           version-type: ${{ env.RELEASE_TYPE }}
           game-versions: ${{ env.MC_VERSION }}
