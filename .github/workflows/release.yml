@@ -113,7 +113,7 @@ jobs:
             -o generate_changelog.sh
 
           chmod +x generate_changelog.sh
-          ./generate_changelog.sh "${{ env.FULL_VERSION }}"
+          ./generate_changelog.sh "${{ env.FULL_VERSION }}" "${{ env.MOD_NAME }}"
 
       - name: Collect release files
         id: collect
