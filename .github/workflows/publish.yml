@@ -6,7 +6,9 @@ on:
 
 jobs:
   prepare:
+    if: ${{ !contains(github.event.release.body, '[skip-mod-publish]') }}
     runs-on: ubuntu-latest
+
 
     outputs:
       loaders: ${{ steps.collect.outputs.loaders }}

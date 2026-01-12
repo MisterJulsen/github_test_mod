@@ -87,13 +87,17 @@ jobs:
       # Read metadata.json into env
       # ------------------------------------------------------------
       - name: Read metadata
-        run: |          
-          VERSION=$(jq -r '.version' metadata.json)
+        run: |
+          MOD_NAME=$(jq -r '.display_name' metadata.json)
           MC_VERSION=$(jq -r '.minecraft_version' metadata.json)
+          MOD_VERSION=$(jq -r '.mod_version' metadata.json)
+          FULL_VERSION=$(jq -r '.full_version' metadata.json)
           RELEASE_CHANNEL=$(jq -r '.release_channel' metadata.json)
 
-          echo "MOD_VERSION=$VERSION" >> $GITHUB_ENV
+          echo "MOD_NAME=$MOD_NAME" >> $GITHUB_ENV
           echo "MC_VERSION=$MC_VERSION" >> $GITHUB_ENV
+          echo "MOD_VERSION=$MOD_VERSION" >> $GITHUB_ENV
+          echo "FULL_VERSION=$FULL_VERSION" >> $GITHUB_ENV
           echo "RELEASE_CHANNEL=$RELEASE_CHANNEL" >> $GITHUB_ENV
 
       # ------------------------------------------------------------
@@ -109,18 +113,15 @@ jobs:
             -o generate_changelog.sh
 
           chmod +x generate_changelog.sh
-          ./generate_changelog.sh "${{ env.MOD_VERSION }}"
+          ./generate_changelog.sh "${{ env.FULL_VERSION }}"
 
       - name: Collect release files
         id: collect
         run: |
           FILES=""
-
-          # Alle Dateinamen aus metadata.json iterieren
           for MAIN in $(jq -r '.artifacts[].filename' metadata.json); do
             echo "Processing $MAIN"
 
-            # Datei im gesamten Repo suchen
             MAIN_PATH=$(find . -type f -name "$MAIN" | head -n 1)
 
             if [ -z "$MAIN_PATH" ]; then
@@ -129,22 +130,17 @@ jobs:
             fi
 
             DIR=$(dirname "$MAIN_PATH")
-
-            # Hauptdatei hinzufügen
             FILES="$FILES $MAIN_PATH"
 
-            # sources
             for f in "$DIR"/*sources.jar; do
               [ -e "$f" ] && FILES="$FILES $f"
             done
 
-            # javadoc
             for f in "$DIR"/*javadoc.jar; do
               [ -e "$f" ] && FILES="$FILES $f"
             done
           done
 
-          # FILES als mehrzeilige Variable speichern
           echo "FILES<<EOF" >> $GITHUB_ENV
           for f in $FILES; do
             echo "$f" >> $GITHUB_ENV
@@ -170,12 +166,14 @@ jobs:
       - name: Create GitHub Release Draft
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ env.MOD_VERSION }}
-          name: ${{ env.MOD_VERSION }}
+          tag_name: ${{ env.FULL_VERSION }}
+          name: ${{ env.mod_name }} ${{ env.MOD_VERSION }}
           target_commitish: ${{ github.ref_name }}
           draft: true
           prerelease: ${{ env.RELEASE_CHANNEL != 'release' }}
-          body_path: CHANGELOG.md
+          body: |
+            ${{ github.event.inputs.trigger_mod_publish == 'false' && '[skip-mod-publish]' || '' }}
+            $(cat CHANGELOG.md)
           files: |
             ${{ env.FILES }}
             metadata.json
