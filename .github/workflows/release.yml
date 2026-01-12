@@ -3,10 +3,6 @@ name: Publish Release
 on:
   workflow_dispatch:
     inputs:
-      reset_cache:
-        description: "Reset Cache"
-        required: false
-        type: boolean
       publish_maven:
         description: "Publish Maven (S3)"
         required: false
@@ -49,15 +45,6 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - name: Reset Gradle Cache
-        if: ${{ github.event.inputs.reset_cache == 'true' }}
-        run: |
-          echo "Resetting Gradle cache..."
-          rm -rf ~/.gradle/caches
-          rm -rf ~/.gradle/wrapper
-          find . -type d -name ".gradle" -exec rm -rf {} +
-          
-
       - name: Cache Gradle & Loom
         uses: actions/cache@v4
         with:
@@ -68,6 +55,7 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle.properties', '**/libs.versions.toml') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
+
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
