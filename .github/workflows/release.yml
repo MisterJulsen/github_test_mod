@@ -91,9 +91,13 @@ jobs:
           FULL_VERSION=$(jq -r '.full_version' metadata.json)
           RELEASE_CHANNEL=$(jq -r '.release_channel' metadata.json)
 
-          # Loaders → Platforms string
-          LOADERS=$(jq -r '.loaders[]' metadata.json | tr '[:lower:]' '[:upper:]')
-          PLATFORM_STRING="[$(echo $LOADERS | tr ' ' '/')]"
+          PLATFORM_STRING=$(jq -r '
+          if has("loaders") and (.loaders | length > 0) then
+          "[" + (.loaders | map(ascii_upcase) | join("/")) + "]"
+          else
+          "[]"
+          end
+          ' metadata.json)
 
           # Load release title format from build config
           TITLE_FORMAT=$(jq -r '.github_release_title_format' .mod-build-config.json)
