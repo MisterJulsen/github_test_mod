@@ -50,17 +50,15 @@ jobs:
           java-version: 21
 
       - name: Cache Gradle & Loom
-        if: ${{ github.event.inputs.reset_cache != 'true' }}
         uses: actions/cache@v4
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
             **/.gradle/loom-cache
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle.properties', '**/libs.versions.toml') }}
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle.properties', '**/libs.versions.toml') }}-${{ github.event.inputs.reset_cache == 'true' && github.run_id || 'stable' }}
           restore-keys: |
             ${{ runner.os }}-gradle-
-
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -159,7 +157,7 @@ jobs:
       - name: Upload Release Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ env.MOD_VERSION }}
+          name: release-${{ env.FULL_VERSION }}
           path: |
             ${{ env.FILES }}
             metadata.json
