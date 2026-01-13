@@ -9,9 +9,9 @@ jobs:
     if: ${{ !contains(github.event.release.body, '[skip-mod-publish]') }}
     runs-on: ubuntu-latest
 
-
     outputs:
       loaders: ${{ steps.collect.outputs.loaders }}
+      release_title: ${{ steps.collect.outputs.release_title }}
 
     steps:
       - name: Checkout correct branch
@@ -39,7 +39,6 @@ jobs:
           FULL_VERSION=$(jq -r '.full_version' "$META")
           RELEASE_CHANNEL=$(jq -r '.release_channel' "$META")
 
-          # Loaders → Platforms string
           PLATFORM_STRING=$(jq -r '
             if has("artifacts") and (.artifacts | length > 0) then
               "[" + (.artifacts | keys | map(ascii_upcase) | join("/")) + "]"
@@ -48,10 +47,8 @@ jobs:
             end
           ' "$META")
 
-          # Load release title format from build config
           TITLE_FORMAT=$(jq -r '.mod_release_title_format' .mod-build-config.json)
 
-          # Replace placeholders
           RELEASE_TITLE=$TITLE_FORMAT
           RELEASE_TITLE=${RELEASE_TITLE//\{MOD_ID\}/$MOD_ID}
           RELEASE_TITLE=${RELEASE_TITLE//\{MOD_NAME\}/$MOD_NAME}
@@ -69,7 +66,9 @@ jobs:
           echo "RELEASE_CHANNEL=$RELEASE_CHANNEL" >> $GITHUB_ENV
           echo "PLATFORMS=$PLATFORM_STRING" >> $GITHUB_ENV
           echo "RELEASE_TITLE=$RELEASE_TITLE" >> $GITHUB_ENV
-                    
+
+          echo "release_title=$RELEASE_TITLE" >> $GITHUB_OUTPUT
+          
           LOADERS=$(jq -r '.artifacts[].platform' "$META" | sort -u)
           LOADERS_JSON=$(printf '%s\n' $LOADERS | jq -R . | jq -s -c .)
           echo "loaders=$LOADERS_JSON" >> $GITHUB_OUTPUT
@@ -87,13 +86,11 @@ jobs:
             done
           done
 
-
       - name: Upload loader data
         uses: actions/upload-artifact@v4
         with:
           name: loader-data
           path: |
-            loaders.json
             files_*.txt
 
       - name: Print release summary
@@ -122,6 +119,9 @@ jobs:
     needs: prepare
     runs-on: ubuntu-latest
 
+    env:
+      RELEASE_TITLE: ${{ needs.prepare.outputs.release_title }}
+
     strategy:
       matrix:
         loader: ${{ fromJson(needs.prepare.outputs.loaders) }}
@@ -146,7 +146,6 @@ jobs:
           name: loader-data
 
       - name: Load files for loader
-        id: files
         run: |
           LOADER="${{ matrix.loader }}"
           echo "LOADER=$LOADER" >> $GITHUB_ENV
@@ -160,7 +159,27 @@ jobs:
           MOD_RELEASE_TITLE=$RELEASE_TITLE
           MOD_RELEASE_TITLE=${MOD_RELEASE_TITLE//\{LOADER\}/$LOADER}
           echo "MOD_RELEASE_TITLE=$MOD_RELEASE_TITLE" >> $GITHUB_ENV
-          
+
           echo "Generated Release Title:"
           echo "$MOD_RELEASE_TITLE"
-          echo "$LOADER"
+          echo "Loader: $LOADER"
+
+      - name: Publish ${{ matrix.loader }}
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          name: ${{ env.MOD_RELEASE_TITLE }}
+          version: ${{ env.MOD_VERSION }}
+          version-type: ${{ env.RELEASE_TYPE }}
+          game-versions: ${{ env.MC_VERSION }}
+          loaders: ${{ matrix.loader }}
+
+          changelog: ${{ github.event.release.body }}
+          files: ${{ env.files }}
+
+          modrinth-id: ${{ secrets.MODRINTH_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+
+          curseforge-id: ${{ secrets.CF_ID }}
+          curseforge-token: ${{ secrets.CF_TOKEN }}
+
+          fail-mode: skip
