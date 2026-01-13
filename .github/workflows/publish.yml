@@ -11,7 +11,7 @@ jobs:
 
     outputs:
       loaders: ${{ steps.collect.outputs.loaders }}
-      release_title: Publishing ${{ steps.collect.outputs.release_title }}
+      release_title: ${{ steps.collect.outputs.release_title }}
 
     steps:
       - name: Checkout correct branch
