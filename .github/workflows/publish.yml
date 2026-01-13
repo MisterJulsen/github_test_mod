@@ -148,16 +148,21 @@ jobs:
         id: files
         run: |
           LOADER="${{ matrix.loader }}"
+          echo "LOADER=$LOADER" >> $GITHUB_ENV
           FILELIST=$(cat "files_${LOADER}.txt")
           echo "files<<EOF" >> $GITHUB_ENV
           echo "$FILELIST" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
       - name: Create release title
-        run: |          
+        run: |
           MOD_RELEASE_TITLE=$RELEASE_TITLE
           MOD_RELEASE_TITLE=${MOD_RELEASE_TITLE//\{LOADER\}/$LOADER}
           echo "MOD_RELEASE_TITLE=$MOD_RELEASE_TITLE" >> $GITHUB_ENV
+          
+          echo "Generated Release Title:"
+          echo "$MOD_RELEASE_TITLE"
+
 
       - name: Publish ${{ matrix.loader }}
         uses: Kir-Antipov/mc-publish@v3.3
