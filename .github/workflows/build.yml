@@ -47,29 +47,21 @@ jobs:
 
       - name: Collect artifacts from metadata.json
         run: |
-          FILES=""          
-          for MAIN in $(jq -r '.artifacts[].filename' metadata.json); do
-            echo "Processing $MAIN"
-          
-            MAIN_PATH=$(find . -type f -name "$MAIN" | head -n 1)
-            if [ -z "$MAIN_PATH" ]; then
-              echo "ERROR: Could not find artifact: $MAIN"
-              exit 1
-            fi
-          
-            DIR=$(dirname "$MAIN_PATH")
-            BASE="${MAIN%.jar}"
-          
-            FILES+="$MAIN_PATH"$'\n'
-          
+          FILES=""
+
+          for BASE in $(jq -r '.artifacts[].filename' metadata.json); do
+            MAIN=$(find . -type f -name "${BASE}.jar" | head -n 1)
+            [ -z "$MAIN" ] && echo "Missing main JAR for $BASE" && exit 1
+
+            FILES+="$MAIN"$'\n'
+            DIR=$(dirname "$MAIN")
+
             for SUFFIX in sources javadoc; do
-              CANDIDATE="$DIR/$BASE-$SUFFIX.jar"
-              if [ -e "$CANDIDATE" ]; then
-                FILES+="$CANDIDATE"$'\n'
-              fi
+              JAR="$DIR/${BASE}-${SUFFIX}.jar"
+              [ -e "$JAR" ] && FILES+="$JAR"$'\n'
             done
           done
-          
+
           {
             echo "FILES<<EOF"
             printf '%s' "$FILES"
