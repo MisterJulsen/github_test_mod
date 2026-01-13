@@ -1,15 +1,20 @@
 name: build
-on: [ pull_request ]
+on: [ pull_request, push ]
 
 jobs:
   build:
+    runs-on: ubuntu-latest
+
     strategy:
       matrix:
-        java: [ 21 ]
-    runs-on: ubuntu-latest
+        java: [21]
+
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -17,38 +22,29 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - name: Loom Cache
+      - name: Cache Gradle & Loom
         uses: actions/cache@v4
         with:
-          path: "**/.gradle/loom-cache"
-          key: "${{ runner.os }}-gradle-${{ hashFiles('**/libs.versions.*', '**/*.gradle*', '**/gradle-wrapper.properties') }}"
-          restore-keys: "${{ runner.os }}-gradle-"
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            **/.gradle/loom-cache
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle.properties', '**/libs.versions.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-home-cache-cleanup: true
-
-      - name: Validate Gradle Wrapper Integrity
-        uses: gradle/wrapper-validation-action@v2
-
-      - name: Make gradlew executable
-        run: chmod +x gradlew
+          gradle-version: wrapper
 
       - name: Build
-        run: TEST_BUILD=${{ github.event.pull_request.number || github.run_number }} ./gradlew build
+        run: |
+          chmod +x gradlew
+          TEST_BUILD=${{ github.event.pull_request.number || github.run_number }} ./gradlew build
 
-      - name: Generate Javadoc
-        run: ./gradlew javadocAll
-
-      - name: Upload Javadoc
-        uses: actions/upload-artifact@v4
-        with:
-          name: javadoc-${{ github.event.pull_request.number || github.run_number }}
-          path: docs/
-
-
-      - name: Capture Test Artifacts
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: test-${{ github.event.pull_request.number || github.run_number }}
