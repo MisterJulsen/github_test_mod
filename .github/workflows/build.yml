@@ -45,6 +45,12 @@ jobs:
           TEST_BUILD=${{ github.event.pull_request.number || github.run_number }} ./gradlew build
           ./gradlew generateReleaseMetadata
 
+      - name: Debug metadata main jar names
+        run: |
+          echo "Artifacts in metadata.json:"
+          jq -r '.artifacts[].filename' metadata.json
+
+
       - name: Collect artifacts from metadata.json
         run: |
           FILES=""
