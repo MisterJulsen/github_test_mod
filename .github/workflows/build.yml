@@ -44,10 +44,39 @@ jobs:
           chmod +x gradlew
           TEST_BUILD=${{ github.event.pull_request.number || github.run_number }} ./gradlew build
 
+      - name: Collect artifacts from metadata.json
+        run: |
+          FILES=""          
+          for MAIN in $(jq -r '.artifacts[].filename' metadata.json); do
+            echo "Processing $MAIN"
+          
+            MAIN_PATH=$(find . -type f -name "$MAIN" | head -n 1)
+            if [ -z "$MAIN_PATH" ]; then
+              echo "ERROR: Could not find artifact: $MAIN"
+              exit 1
+            fi
+          
+            DIR=$(dirname "$MAIN_PATH")
+            BASE="${MAIN%.jar}"
+          
+            FILES+="$MAIN_PATH"$'\n'
+          
+            for SUFFIX in sources javadoc; do
+              CANDIDATE="$DIR/$BASE-$SUFFIX.jar"
+              if [ -e "$CANDIDATE" ]; then
+                FILES+="$CANDIDATE"$'\n'
+              fi
+            done
+          done
+          
+          {
+            echo "FILES<<EOF"
+            printf '%s' "$FILES"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: test-${{ github.event.pull_request.number || github.run_number }}
-          path: |
-            fabric/build/libs/!(*-@(dev\|sources\|javadoc)).jar
-            forge/build/libs/!(*-@(dev\|sources\|javadoc)).jar
+          path: ${{ env.FILES }}
