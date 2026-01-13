@@ -106,6 +106,7 @@ jobs:
           echo "Mod Version:      $MOD_VERSION"
           echo "Full Version:     $FULL_VERSION"
           echo "Release Type:     $RELEASE_TYPE"
+          echo "Title:            $RELEASE_TITLE"
           echo ""
           echo "Loaders:"
           printf '%s\n' $LOADERS
@@ -162,24 +163,4 @@ jobs:
           
           echo "Generated Release Title:"
           echo "$MOD_RELEASE_TITLE"
-
-
-      - name: Publish ${{ matrix.loader }}
-        uses: Kir-Antipov/mc-publish@v3.3
-        with:
-          name: ${{ env.MOD_RELEASE_TITLE }}
-          version: ${{ env.MOD_VERSION }}
-          version-type: ${{ env.RELEASE_TYPE }}
-          game-versions: ${{ env.MC_VERSION }}
-          loaders: ${{ matrix.loader }}
-
-          changelog: ${{ github.event.release.body }}
-          files: ${{ env.files }}
-
-          modrinth-id: ${{ secrets.MODRINTH_ID }}
-          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
-
-          curseforge-id: ${{ secrets.CF_ID }}
-          curseforge-token: ${{ secrets.CF_TOKEN }}
-
-          fail-mode: skip
+          echo "$LOADER"
