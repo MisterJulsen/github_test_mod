@@ -40,8 +40,13 @@ jobs:
           RELEASE_CHANNEL=$(jq -r '.release_channel' "$META")
 
           # Loaders → Platforms string
-          LOADERS=$(jq -r '.loaders[]' "$META" | tr '[:lower:]' '[:upper:]')
-          PLATFORM_STRING="[$(echo $LOADERS | tr ' ' '/')]"
+          PLATFORM_STRING=$(jq -r '
+            if has("artifacts") and (.artifacts | length > 0) then
+              "[" + (.artifacts | keys | map(ascii_upcase) | join("/")) + "]"
+            else
+              "[]"
+            end
+          ' "$META")
 
           # Load release title format from build config
           TITLE_FORMAT=$(jq -r '.mod_release_title_format' .mod-build-config.json)
