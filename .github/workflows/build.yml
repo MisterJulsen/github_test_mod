@@ -50,14 +50,15 @@ jobs:
           FILES=""
 
           for BASE in $(jq -r '.artifacts[].filename' metadata.json); do
+            # Main JAR
             MAIN=$(find . -type f -name "${BASE}.jar" | head -n 1)
             [ -z "$MAIN" ] && echo "Missing main JAR for $BASE" && exit 1
 
             FILES+="$MAIN"$'\n'
             DIR=$(dirname "$MAIN")
 
-            for SUFFIX in sources javadoc; do
-              JAR="$DIR/${BASE}-${SUFFIX}.jar"
+            # sources + javadoc (flexibel suchen)
+            for JAR in "$DIR"/${BASE}*-sources.jar "$DIR"/${BASE}*-javadoc.jar; do
               [ -e "$JAR" ] && FILES+="$JAR"$'\n'
             done
           done
@@ -67,6 +68,7 @@ jobs:
             printf '%s' "$FILES"
             echo "EOF"
           } >> "$GITHUB_ENV"
+
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
