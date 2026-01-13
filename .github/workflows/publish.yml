@@ -20,9 +20,6 @@ jobs:
           ref: ${{ github.event.release.target_commitish }}
           fetch-depth: 0
 
-      - name: Make scripts executable
-        run: chmod +x scripts/*.sh
-
       - name: Download release assets
         uses: robinraju/release-downloader@v1
         with:
