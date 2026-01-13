@@ -6,6 +6,6 @@ public final class GithubTestTmod {
     public static void init() {
         // Write common init code here.
 
-        // Hello World 2
+        // Hello World 3
     }
 }
