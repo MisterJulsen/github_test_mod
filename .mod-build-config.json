@@ -1,6 +1,6 @@
 {
-  "github_release_title_format": "{MOD_NAME} v{MOD_VERSION} {PLATFORMS}",
-  "mod_release_title_format": "{MOD_ID}-{LOADER}-{MOD_VERSION}",
+  "github_release_title_format": "{MOD_NAME} - v{MOD_VERSION} {PLATFORMS}",
+  "mod_release_title_format": "{MOD_ID}-{LOADER}-{FULL_VERSION}",
   "branches": [
     "mc/1.20.1"
   ],

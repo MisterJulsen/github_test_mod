@@ -1,4 +1,4 @@
-name: Publish Release
+name: Create Release
 
 on:
   workflow_dispatch:
@@ -27,18 +27,12 @@ jobs:
         java: [21]
 
     steps:
-      # ------------------------------------------------------------
-      # Checkout
-      # ------------------------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           fetch-tags: true
 
-      # ------------------------------------------------------------
-      # Java & Gradle
-      # ------------------------------------------------------------
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -63,9 +57,6 @@ jobs:
           gradle-home-cache-cleanup: true
           gradle-version: wrapper
 
-      # ------------------------------------------------------------
-      # Build
-      # ------------------------------------------------------------
       - name: Build
         env:
           MAVEN_ENDPOINT: ${{ secrets.MAVEN_ENDPOINT }}
@@ -91,9 +82,6 @@ jobs:
           FULL_VERSION=$(jq -r '.full_version' metadata.json)
           RELEASE_CHANNEL=$(jq -r '.release_channel' metadata.json)
           
-          # ------------------------------------------------------------
-          # Platforms from artifacts (fabric/forge/...)
-          # ------------------------------------------------------------
           PLATFORM_STRING=$(jq -r '
             if has("artifacts") and (.artifacts | length > 0) then
               "[" + (.artifacts | keys | map(ascii_upcase) | join("/")) + "]"
@@ -102,9 +90,6 @@ jobs:
             end
           ' metadata.json)
           
-          # ------------------------------------------------------------
-          # Release title format
-          # ------------------------------------------------------------
           TITLE_FORMAT=$(jq -r '.github_release_title_format' .mod-build-config.json)
           
           RELEASE_TITLE=$TITLE_FORMAT
@@ -124,12 +109,8 @@ jobs:
           echo "RELEASE_CHANNEL=$RELEASE_CHANNEL" >> $GITHUB_ENV
           echo "PLATFORMS=$PLATFORM_STRING" >> $GITHUB_ENV
           echo "RELEASE_TITLE=$RELEASE_TITLE" >> $GITHUB_ENV
+          
 
-
-
-      # ------------------------------------------------------------
-      # Generate Changelog
-      # ------------------------------------------------------------
       - name: Generate changelog
         run: |
           sudo apt-get update
@@ -182,9 +163,6 @@ jobs:
           echo "$CONTENT" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      # ------------------------------------------------------------
-      # Upload Artifacts
-      # ------------------------------------------------------------
       - name: Upload Release Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -194,9 +172,6 @@ jobs:
             metadata.json
             CHANGELOG.md
 
-      # ------------------------------------------------------------
-      # GitHub Release (Draft)
-      # ------------------------------------------------------------
       - name: Create GitHub Release Draft
         uses: softprops/action-gh-release@v2
         with:
