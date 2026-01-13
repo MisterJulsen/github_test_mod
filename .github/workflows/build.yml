@@ -49,5 +49,5 @@ jobs:
         with:
           name: test-${{ github.event.pull_request.number || github.run_number }}
           path: |
-            fabric/build/libs/
-            forge/build/libs/
+            fabric/build/libs/!(*-@(dev\|sources\|javadoc)).jar
+            forge/build/libs/!(*-@(dev\|sources\|javadoc)).jar
