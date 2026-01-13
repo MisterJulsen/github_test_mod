@@ -149,10 +149,10 @@ jobs:
           echo "EOF" >> $GITHUB_ENV
 
       - name: Create release title
-        id: collect
         run: |          
           MOD_RELEASE_TITLE=$RELEASE_TITLE
           MOD_RELEASE_TITLE=${MOD_RELEASE_TITLE//\{LOADER\}/$LOADER}
+          echo "MOD_RELEASE_TITLE=$MOD_RELEASE_TITLE" >> $GITHUB_ENV
 
       - name: Publish ${{ matrix.loader }}
         uses: Kir-Antipov/mc-publish@v3.3
