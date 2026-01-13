@@ -43,21 +43,14 @@ jobs:
         run: |
           chmod +x gradlew
           TEST_BUILD=${{ github.event.pull_request.number || github.run_number }} ./gradlew build
+          ./gradlew generateReleaseMetadata
 
       - name: Collect artifacts from metadata.json
         run: |
-          set -e
-          
-          FILES=""
-          
-          echo "Reading metadata.json…"
-          jq . metadata.json
-          
-          # Alle Artifact-Filenames aus metadata.json holen
+          FILES=""          
           for MAIN in $(jq -r '.artifacts[].filename' metadata.json); do
             echo "Processing $MAIN"
           
-            # Hauptdatei exakt finden
             MAIN_PATH=$(find . -type f -name "$MAIN" | head -n 1)
             if [ -z "$MAIN_PATH" ]; then
               echo "ERROR: Could not find artifact: $MAIN"
@@ -69,7 +62,6 @@ jobs:
           
             FILES+="$MAIN_PATH"$'\n'
           
-            # sources + javadoc
             for SUFFIX in sources javadoc; do
               CANDIDATE="$DIR/$BASE-$SUFFIX.jar"
               if [ -e "$CANDIDATE" ]; then
@@ -78,15 +70,11 @@ jobs:
             done
           done
           
-          echo "Collected files:"
-          printf '%s\n' "$FILES"
-          
           {
             echo "FILES<<EOF"
             printf '%s' "$FILES"
             echo "EOF"
           } >> "$GITHUB_ENV"
-
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
