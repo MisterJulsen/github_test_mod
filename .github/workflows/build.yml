@@ -40,19 +40,21 @@ jobs:
           gradle-version: wrapper
 
       - name: Build
-        env:
-          TEST: ${{ github.event.pull_request.number || github.run_number }}
         run: |
           chmod +x gradlew
-          ./gradlew build
+          TEST=${{ github.event.pull_request.number || github.run_number }} ./gradlew build
           ./gradlew generateReleaseMetadata
 
-      - name: Collect artifacts from metadata.json
-        run: |          
+      - name: Debug metadata main jar names
+        run: |
           echo "Artifacts in metadata.json:"
           jq -r '.artifacts[].filename' metadata.json
-          
+
+
+      - name: Collect artifacts from metadata.json
+        run: |
           FILES=""
+
           for BASE in $(jq -r '.artifacts[].filename' metadata.json); do
             # Main JAR
             MAIN=$(find . -type f -name "${BASE}.jar" | head -n 1)
@@ -61,6 +63,7 @@ jobs:
             FILES+="$MAIN"$'\n'
             DIR=$(dirname "$MAIN")
 
+            # sources + javadoc (flexibel suchen)
             for JAR in "$DIR"/${BASE}*-sources.jar "$DIR"/${BASE}*-javadoc.jar; do
               [ -e "$JAR" ] && FILES+="$JAR"$'\n'
             done
