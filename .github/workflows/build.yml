@@ -42,19 +42,25 @@ jobs:
       - name: Build
         run: |
           chmod +x gradlew
-          TEST=${{ github.event.pull_request.number || github.run_number }} ./gradlew build
+
+          # Test-Build-Nummer setzen
+          if [ "${{ github.event.pull_request.number }}" != "" ]; then
+            export TEST_BUILD="pr.${{ github.event.pull_request.number }}"
+          else
+            export TEST_BUILD="run.${{ github.run_number }}"
+          fi
+
+          echo "Using TEST_BUILD=$TEST_BUILD"
+
+          ./gradlew build
           ./gradlew generateReleaseMetadata
 
-      - name: Debug metadata main jar names
-        run: |
+      - name: Collect artifacts from metadata.json
+        run: |          
           echo "Artifacts in metadata.json:"
           jq -r '.artifacts[].filename' metadata.json
-
-
-      - name: Collect artifacts from metadata.json
-        run: |
+          
           FILES=""
-
           for BASE in $(jq -r '.artifacts[].filename' metadata.json); do
             # Main JAR
             MAIN=$(find . -type f -name "${BASE}.jar" | head -n 1)
