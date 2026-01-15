@@ -96,26 +96,37 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          SOURCE_BRANCH="${{ github.event.pull_request.base.ref || 'manual' }}"
+          # Der ursprüngliche Feature-Branch des gemergten PRs
+          FEATURE_BRANCH="${{ github.event.pull_request.head.ref }}"
+
+          echo "Original Feature Branch: $FEATURE_BRANCH"
 
           for TARGET in ${{ steps.targets.outputs.targets }}; do
+            echo "Processing target branch: $TARGET"
+
             BACKPORT_BRANCH="auto-port/$(date +%s)-to-$TARGET"
 
-            git checkout -b "$BACKPORT_BRANCH" "origin/$TARGET" || continue
+            # Neuen Branch vom Zielbranch erstellen
+            git checkout -b "$BACKPORT_BRANCH" "origin/$TARGET"
 
-            for COMMIT in ${{ steps.items.outputs.commits }}; do
-              git cherry-pick "$COMMIT" || {
-                git cherry-pick --abort
-                exit 1
-              }
-            done
+            # Merge des Feature-Branches (wie ein manueller PR)
+            # Konflikte werden NICHT abgebrochen – PR kann Konflikte enthalten
+            git merge --no-ff "origin/$FEATURE_BRANCH" || true
 
+            # Änderungen committen, falls Merge automatisch ging
+            if ! git diff --quiet; then
+              git add -A
+              git commit -m "Auto-Port of PR #${{ github.event.pull_request.number }} from $FEATURE_BRANCH" || true
+            fi
+
+            # Branch pushen
             git push origin "$BACKPORT_BRANCH"
 
+            # PR erstellen
             gh pr create \
               --base "$TARGET" \
               --head "$BACKPORT_BRANCH" \
               --title "[Auto-Port] → $TARGET" \
-              --body "Automatic Port from $SOURCE_BRANCH" \
+              --body "Automatic port of PR #${{ github.event.pull_request.number }} from branch \`$FEATURE_BRANCH\`." \
               --label auto-port
           done
