@@ -3,20 +3,45 @@ name: Snapshot Build
 on:
   pull_request:
     types: [closed]
-    branches:
-      - 'mc/*'
 
 jobs:
-  snapshot:
-    if: github.event.pull_request.merged == true
+  build:
     runs-on: ubuntu-latest
+
     strategy:
       matrix:
-        java: [ 21 ]
+        java: [21]
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Read config
+        id: config
+        run: |
+          PATTERN=$(jq -r '.main_branch_pattern' .mod-build-config.json)
+          echo "pattern=$PATTERN" >> $GITHUB_OUTPUT
+
+      - name: Check base branch pattern
+        id: branchcheck
+        run: |
+          BASE="${{ github.event.pull_request.base.ref }}"
+          PATTERN="${{ steps.config.outputs.pattern }}"
+
+          if [[ "$BASE" =~ $PATTERN ]]; then
+            echo "valid=true" >> $GITHUB_OUTPUT
+          else
+            echo "valid=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Stop if branch does not match pattern
+        if: |
+          github.event_name == 'pull_request' &&
+          steps.branchcheck.outputs.valid != 'true'
+        run: exit 0
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -24,31 +49,61 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - name: Loom Cache
+      - name: Cache Gradle & Loom
         uses: actions/cache@v4
         with:
-          path: "**/.gradle/loom-cache"
-          key: "${{ runner.os }}-gradle-${{ hashFiles('**/libs.versions.*', '**/*.gradle*', '**/gradle-wrapper.properties') }}"
-          restore-keys: "${{ runner.os }}-gradle-"
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            **/.gradle/loom-cache
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle.properties', '**/libs.versions.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-home-cache-cleanup: true
+          gradle-version: wrapper
 
-      - name: Validate Gradle Wrapper Integrity
-        uses: gradle/wrapper-validation-action@v2
+      - name: Build
+        run: |
+          chmod +x gradlew
+          export SNAPSHOT_BUILD="run.${{ github.run_number }}"
+          echo "Using SNAPSHOT_BUILD=$SNAPSHOT_BUILD"
 
-      - name: Make gradlew executable
-        run: chmod +x gradlew
+          ./gradlew build
+          ./gradlew generateReleaseMetadata
 
-      - name: Build Snapshot
-        run: SNAPSHOT_BUILD=${{ github.run_number }} ./gradlew build
+      - name: Collect artifacts from metadata.json
+        run: |
+          echo "Artifacts in metadata.json:"
+          jq -r '.artifacts[].filename' metadata.json
+          
+          FILES=""
+          for BASE in $(jq -r '.artifacts[].filename' metadata.json); do
+            # Main JAR
+            MAIN=$(find . -type f -name "${BASE}.jar" | head -n 1)
+            [ -z "$MAIN" ] && echo "Missing main JAR for $BASE" && exit 1
 
-      - name: Upload Snapshot
+            FILES+="$MAIN"$'\n'
+            DIR=$(dirname "$MAIN")
+
+            # sources + javadoc (flexibel suchen)
+            for JAR in "$DIR"/${BASE}*-sources.jar "$DIR"/${BASE}*-javadoc.jar; do
+              [ -e "$JAR" ] && FILES+="$JAR"$'\n'
+            done
+          done
+
+          {
+            echo "FILES<<EOF"
+            printf '%s' "$FILES"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+
+
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: snapshot-${{ github.run_number }}
-          path: |
-            fabric/build/libs/
-            forge/build/libs/
+          path: ${{ env.FILES }}

@@ -96,26 +96,46 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          SOURCE_BRANCH="${{ github.event.pull_request.base.ref || 'manual' }}"
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "github-actions"
+
+          LABEL="auto-port"
+
+          echo "Checking if label '$LABEL' exists..."
+
+          if ! gh label list --limit 200 | grep -q "^$LABEL"; then
+            echo "Label '$LABEL' does not exist. Creating it..."
+            gh label create "$LABEL" --color "#1D76DB" --description "Automatically created auto-port label"
+          else
+            echo "Label '$LABEL' already exists."
+          fi
+
+          FEATURE_BRANCH="${{ github.event.pull_request.head.ref }}"
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+
+          echo "Original Feature Branch: $FEATURE_BRANCH"
+          echo "Original PR Number: $PR_NUMBER"
 
           for TARGET in ${{ steps.targets.outputs.targets }}; do
-            BACKPORT_BRANCH="auto-port/$(date +%s)-to-$TARGET"
+            echo "Processing target branch: $TARGET"
 
-            git checkout -b "$BACKPORT_BRANCH" "origin/$TARGET" || continue
+            SAFE_FEATURE_BRANCH=$(echo "$FEATURE_BRANCH" | tr '/' '-')
+            SAFE_TARGET=$(echo "$TARGET" | tr '/' '-')
 
-            for COMMIT in ${{ steps.items.outputs.commits }}; do
-              git cherry-pick "$COMMIT" || {
-                git cherry-pick --abort
-                exit 1
-              }
-            done
+            BACKPORT_BRANCH="auto-port/${PR_NUMBER}-${SAFE_FEATURE_BRANCH}-to-${SAFE_TARGET}"
+
+            git checkout -b "$BACKPORT_BRANCH" "origin/$TARGET"
+            git merge --no-ff "origin/$FEATURE_BRANCH" || true
+            if ! git diff --quiet; then
+              git add -A
+              git commit -m "Auto-Port of PR #${PR_NUMBER} from $FEATURE_BRANCH" || true
+            fi
 
             git push origin "$BACKPORT_BRANCH"
-
             gh pr create \
               --base "$TARGET" \
               --head "$BACKPORT_BRANCH" \
-              --title "[Auto-Port] → $TARGET" \
-              --body "Automatic Port from $SOURCE_BRANCH" \
-              --label auto-port
+              --title "[Auto-Port] ${FEATURE_BRANCH} → ${TARGET}" \
+              --body "Automatic port of PR #${PR_NUMBER} from branch \`${FEATURE_BRANCH}\`." \
+              --label "$LABEL"
           done

@@ -181,5 +181,3 @@ jobs:
 
           curseforge-id: ${{ secrets.CF_ID }}
           curseforge-token: ${{ secrets.CF_TOKEN }}
-
-          fail-mode: skip
