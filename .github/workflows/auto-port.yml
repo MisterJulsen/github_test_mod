@@ -96,6 +96,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Git identity setzen (wichtig für Commits)
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "github-actions"
+
           # Der ursprüngliche Feature-Branch des gemergten PRs
           FEATURE_BRANCH="${{ github.event.pull_request.head.ref }}"
 
@@ -110,7 +114,7 @@ jobs:
             git checkout -b "$BACKPORT_BRANCH" "origin/$TARGET"
 
             # Merge des Feature-Branches (wie ein manueller PR)
-            # Konflikte werden NICHT abgebrochen – PR kann Konflikte enthalten
+            # Konflikte brechen NICHT ab – PR kann Konflikte enthalten
             git merge --no-ff "origin/$FEATURE_BRANCH" || true
 
             # Änderungen committen, falls Merge automatisch ging
@@ -128,5 +132,5 @@ jobs:
               --head "$BACKPORT_BRANCH" \
               --title "[Auto-Port] → $TARGET" \
               --body "Automatic port of PR #${{ github.event.pull_request.number }} from branch \`$FEATURE_BRANCH\`." \
-              --label auto-port
+              --label automated || echo "Label 'automated' not found, skipping label"
           done
