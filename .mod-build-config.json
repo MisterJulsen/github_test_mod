@@ -1,7 +1,8 @@
 {
   "github_release_title_format": "{MOD_NAME} - v{MOD_VERSION} {PLATFORMS}",
   "mod_release_title_format": "{MOD_ID}-{LOADER}-{FULL_VERSION}",
-  "branches": [
+  "main_branch_pattern": "^mc[/-].+",
+  "auto_port_branches": [
     "mc/1.20.1"
   ],
   "modules": [
