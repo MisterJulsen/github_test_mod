@@ -100,9 +100,21 @@ jobs:
           git config --global user.email "github-actions@github.com"
           git config --global user.name "github-actions"
 
+          # Label-Name
+          LABEL="auto-port"
+
+          echo "Checking if label '$LABEL' exists..."
+
+          # Prüfen, ob das Label existiert – wenn nicht, erstellen
+          if ! gh label list --limit 200 | grep -q "^$LABEL"; then
+            echo "Label '$LABEL' does not exist. Creating it..."
+            gh label create "$LABEL" --color "#1D76DB" --description "Automatically created auto-port label"
+          else
+            echo "Label '$LABEL' already exists."
+          fi
+
           # Der ursprüngliche Feature-Branch des gemergten PRs
           FEATURE_BRANCH="${{ github.event.pull_request.head.ref }}"
-
           echo "Original Feature Branch: $FEATURE_BRANCH"
 
           for TARGET in ${{ steps.targets.outputs.targets }}; do
@@ -114,7 +126,6 @@ jobs:
             git checkout -b "$BACKPORT_BRANCH" "origin/$TARGET"
 
             # Merge des Feature-Branches (wie ein manueller PR)
-            # Konflikte brechen NICHT ab – PR kann Konflikte enthalten
             git merge --no-ff "origin/$FEATURE_BRANCH" || true
 
             # Änderungen committen, falls Merge automatisch ging
@@ -132,5 +143,5 @@ jobs:
               --head "$BACKPORT_BRANCH" \
               --title "[Auto-Port] → $TARGET" \
               --body "Automatic port of PR #${{ github.event.pull_request.number }} from branch \`$FEATURE_BRANCH\`." \
-              --label automated || echo "Label 'automated' not found, skipping label"
+              --label "$LABEL"
           done
