@@ -52,8 +52,7 @@ jobs:
 
           echo "Using TEST_BUILD=$TEST_BUILD"
 
-          ./gradlew build
-          ./gradlew generateReleaseMetadata
+          ./gradlew buildWithMetadata
 
       - name: Collect artifacts from metadata.json
         run: |          

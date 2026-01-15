@@ -72,8 +72,7 @@ jobs:
           export SNAPSHOT_BUILD="run.${{ github.run_number }}"
           echo "Using SNAPSHOT_BUILD=$SNAPSHOT_BUILD"
 
-          ./gradlew build
-          ./gradlew generateReleaseMetadata
+          ./gradlew buildWithMetadata
 
       - name: Collect artifacts from metadata.json
         run: |
