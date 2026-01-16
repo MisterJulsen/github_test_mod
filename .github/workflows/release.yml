@@ -126,10 +126,17 @@ jobs:
       - name: Collect release files
         id: collect
         run: |
-          FILES=""
-          for FILENAME_BASE in $(jq -r '.artifacts[].filename' metadata.json); do
-            echo "Searching for artifacts starting with: $FILENAME_BASE"
+          # DEBUG: Zeige alle Dateien in den build/libs Verzeichnissen an
+          echo "--- DEBUG: Listing all files in build/libs folders ---"
+          find . -path "*/build/libs/*.jar" -ls || echo "No jars found"
+          echo "----------------------------------------------------"
           
+          FILES=""
+          # Iteriere über die Basis-Namen aus der metadata.json
+          for FILENAME_BASE in $(jq -r '.artifacts[].filename' metadata.json); do
+            echo "Processing artifact base: $FILENAME_BASE"
+          
+            # 1. Haupt-Jar finden
             MAIN_PATH=$(find . -type f -name "${FILENAME_BASE}.jar" ! -name "*-sources.jar" ! -name "*-javadoc.jar" | head -n 1)
           
             if [ -z "$MAIN_PATH" ]; then
@@ -138,23 +145,34 @@ jobs:
             fi
           
             echo "Found main artifact: $MAIN_PATH"
-            DIR=$(dirname "$MAIN_PATH")
             FILES="$FILES $MAIN_PATH"
+            DIR=$(dirname "$MAIN_PATH")
           
-            if [ -f "${DIR}/${FILENAME_BASE}-sources.jar" ]; then
-              FILES="$FILES ${DIR}/${FILENAME_BASE}-sources.jar"
-              echo "Added sources: ${FILENAME_BASE}-sources.jar"
+            # 2. Suche nach Sources/Javadoc mit Wildcards, um Benennungsfehler zu vermeiden
+            # Wir suchen im selben Verzeichnis nach Dateien, die den Namen enthalten und auf sources/javadoc enden
+          
+            SOURCE_JAR=$(find "$DIR" -maxdepth 1 -type f -name "${FILENAME_BASE}-sources.jar" -o -name "*${FILENAME_BASE}*sources.jar" | head -n 1)
+            if [ -n "$SOURCE_JAR" ]; then
+              FILES="$FILES $SOURCE_JAR"
+              echo "Added sources: $SOURCE_JAR"
+            else
+              echo "No sources found for $FILENAME_BASE in $DIR"
             fi
           
-            if [ -f "${DIR}/${FILENAME_BASE}-javadoc.jar" ]; then
-              FILES="$FILES ${DIR}/${FILENAME_BASE}-javadoc.jar"
-              echo "Added javadoc: ${FILENAME_BASE}-javadoc.jar"
+            JAVADOC_JAR=$(find "$DIR" -maxdepth 1 -type f -name "${FILENAME_BASE}-javadoc.jar" -o -name "*${FILENAME_BASE}*javadoc.jar" | head -n 1)
+            if [ -n "$JAVADOC_JAR" ]; then
+              FILES="$FILES $JAVADOC_JAR"
+              echo "Added javadoc: $JAVADOC_JAR"
+            else
+              echo "No javadoc found for $FILENAME_BASE in $DIR"
             fi
           done
           
+          # Speichern für GitHub Actions
           echo "FILES<<EOF" >> $GITHUB_ENV
           for f in $FILES; do
-            echo "$f" >> $GITHUB_ENV
+            # Nur hinzufügen, wenn der Pfad nicht leer ist
+            [ -n "$f" ] && echo "$f" >> $GITHUB_ENV
           done
           echo "EOF" >> $GITHUB_ENV
 
