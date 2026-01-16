@@ -75,27 +75,24 @@ jobs:
 
       - name: Read metadata
         run: |
-
-          echo "===== Pretty‑printed metadata.json ====="
-          jq . metadata.json || echo "jq failed or metadata.json invalid"
-
           MOD_ID=$(jq -r '.mod_id' metadata.json)
           MOD_NAME=$(jq -r '.display_name' metadata.json)
           MC_VERSION=$(jq -r '.minecraft_version' metadata.json)
           MOD_VERSION=$(jq -r '.mod_version' metadata.json)
           FULL_VERSION=$(jq -r '.full_version' metadata.json)
           RELEASE_CHANNEL=$(jq -r '.release_channel' metadata.json)
-          
+
+          # Plattformliste aus den Keys des Objekts erzeugen
           PLATFORM_STRING=$(jq -r '
             if has("artifacts") and (.artifacts | length > 0) then
-              "[" + (.artifacts | keys | map(ascii_upcase) | join("/")) + "]"
+              "[" + ( .artifacts | keys | map(ascii_upcase) | join("/") ) + "]"
             else
               "[]"
             end
           ' metadata.json)
-          
+
           TITLE_FORMAT=$(jq -r '.github_release_title_format' .mod-build-config.json)
-          
+
           RELEASE_TITLE=$TITLE_FORMAT
           RELEASE_TITLE=${RELEASE_TITLE//\{MOD_ID\}/$MOD_ID}
           RELEASE_TITLE=${RELEASE_TITLE//\{MOD_NAME\}/$MOD_NAME}
@@ -104,7 +101,7 @@ jobs:
           RELEASE_TITLE=${RELEASE_TITLE//\{MC_VERSION\}/$MC_VERSION}
           RELEASE_TITLE=${RELEASE_TITLE//\{RELEASE_CHANNEL\}/$RELEASE_CHANNEL}
           RELEASE_TITLE=${RELEASE_TITLE//\{PLATFORMS\}/$PLATFORM_STRING}
-          
+
           echo "MOD_ID=$MOD_ID" >> $GITHUB_ENV
           echo "MOD_NAME=$MOD_NAME" >> $GITHUB_ENV
           echo "MC_VERSION=$MC_VERSION" >> $GITHUB_ENV
@@ -113,7 +110,6 @@ jobs:
           echo "RELEASE_CHANNEL=$RELEASE_CHANNEL" >> $GITHUB_ENV
           echo "PLATFORMS=$PLATFORM_STRING" >> $GITHUB_ENV
           echo "RELEASE_TITLE=$RELEASE_TITLE" >> $GITHUB_ENV
-          
 
       - name: Generate changelog
         run: |
@@ -131,8 +127,17 @@ jobs:
         id: collect
         run: |
           FILES=""
-          for MAIN in $(jq -r '.artifacts[].filename' metadata.json); do
+
+          # Iteriere über die Keys des artifacts-Objekts
+          for KEY in $(jq -r '.artifacts | keys[]' metadata.json); do
+            MAIN=$(jq -r ".artifacts[\"$KEY\"].filename" metadata.json)
+
             echo "Processing $MAIN"
+
+            # Falls kein .jar am Ende steht, automatisch ergänzen
+            if [[ "$MAIN" != *.jar ]]; then
+              MAIN="${MAIN}.jar"
+            fi
 
             MAIN_PATH=$(find . -type f -name "$MAIN" | head -n 1)
 
