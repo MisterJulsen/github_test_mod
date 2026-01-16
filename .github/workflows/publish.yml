@@ -73,9 +73,9 @@ jobs:
           LOADERS_JSON=$(printf '%s\n' $LOADERS | jq -R . | jq -s -c .)
           echo "loaders=$LOADERS_JSON" >> $GITHUB_OUTPUT
           
-          for L in $LOADERS; do
-            jq -r --arg L "$L" '.artifacts[] | select(.platform==$L) | .filename' "$META" \
-              | sed 's|^|artifacts/|' > "files_$L.txt"
+          jq -r --arg L "$L" '.artifacts[] | select(.platform==$L) | .filename' "$META" \
+            | sed 's|$|.jar|' \
+            | sed 's|^|artifacts/|' > "files_$L.txt"
           
             for f in artifacts/*${L}*sources.jar; do
               [ -f "$f" ] && echo "$f" >> "files_$L.txt"
