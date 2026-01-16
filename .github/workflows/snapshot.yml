@@ -69,9 +69,8 @@ jobs:
       - name: Build
         run: |
           chmod +x gradlew
-          export SNAPSHOT_BUILD="run.${{ github.run_number }}"
+          export SNAPSHOT_BUILD="${{ github.run_number }}"
           echo "Using SNAPSHOT_BUILD=$SNAPSHOT_BUILD"
-
           ./gradlew buildWithMetadata
 
       - name: Collect release files

@@ -43,15 +43,13 @@ jobs:
         run: |
           chmod +x gradlew
 
-          # Test-Build-Nummer setzen
           if [ "${{ github.event.pull_request.number }}" != "" ]; then
             export TEST_BUILD="pr.${{ github.event.pull_request.number }}"
           else
-            export TEST_BUILD="run.${{ github.run_number }}"
+            export TEST_BUILD="pu.${{ github.run_number }}"
           fi
 
           echo "Using TEST_BUILD=$TEST_BUILD"
-
           ./gradlew buildWithMetadata
 
       - name: Collect release files
