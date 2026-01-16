@@ -54,41 +54,31 @@ jobs:
 
           ./gradlew buildWithMetadata
 
-      - name: Collect artifacts from metadata.json
+      - name: Collect release files
+        id: collect
         run: |
-          echo "Artifacts in metadata.json:"
-          jq -r '.artifacts[].filename' metadata.json
-
           FILES=""
-
-          for BASE in $(jq -r '.artifacts[].filename' metadata.json); do
-            echo "Processing artifact base name: $BASE"
-
-            # Main JAR (BASE ist jetzt OHNE Extension)
-            MAIN=$(find . -type f -name "${BASE}.jar" | head -n 1)
-            if [ -z "$MAIN" ]; then
-              echo "Missing main JAR for $BASE"
+          for MAIN in $(jq -r '.artifacts[].filename' metadata.json); do
+            echo "Processing $MAIN"
+            MAIN_PATH=$(find . -type f -name "${MAIN}.jar" | head -n 1)
+            if [ -z "$MAIN_PATH" ]; then
+              echo "ERROR: Could not find artifact: $MAIN"
               exit 1
             fi
-
-            FILES+="$MAIN"$'\n'
-            DIR=$(dirname "$MAIN")
-
-            # sources + javadoc (optional)
-            for JAR in \
-              "$DIR"/${BASE}*-sources.jar \
-              "$DIR"/${BASE}*-javadoc.jar; do
-              [ -e "$JAR" ] && FILES+="$JAR"$'\n'
+            DIR=$(dirname "$MAIN_PATH")
+            FILES="$FILES $MAIN_PATH"
+            for f in "$DIR"/*sources.jar; do
+              [ -e "$f" ] && FILES="$FILES $f"
+            done
+            for f in "$DIR"/*javadoc.jar; do
+              [ -e "$f" ] && FILES="$FILES $f"
             done
           done
-
-          {
-            echo "FILES<<EOF"
-            printf '%s' "$FILES"
-            echo "EOF"
-          } >> "$GITHUB_ENV"
-
-
+          echo "FILES<<EOF" >> $GITHUB_ENV
+          for f in $FILES; do
+            echo "$f" >> $GITHUB_ENV
+          done
+          echo "EOF" >> $GITHUB_ENV
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4

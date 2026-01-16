@@ -116,6 +116,7 @@ jobs:
             -o generate_changelog.sh
           chmod +x generate_changelog.sh
           ./generate_changelog.sh "${{ env.FULL_VERSION }}" "${{ env.MOD_NAME }}"
+
       - name: Collect release files
         id: collect
         run: |
@@ -141,6 +142,7 @@ jobs:
             echo "$f" >> $GITHUB_ENV
           done
           echo "EOF" >> $GITHUB_ENV
+
       - name: Load changelog
         id: changelog
         run: |
