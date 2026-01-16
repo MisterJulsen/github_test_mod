@@ -130,32 +130,41 @@ jobs:
 
           # Iteriere über die Keys des artifacts-Objekts
           for KEY in $(jq -r '.artifacts | keys[]' metadata.json); do
-            MAIN=$(jq -r ".artifacts[\"$KEY\"].filename" metadata.json)
+            PLATFORM=$(jq -r ".artifacts[\"$KEY\"].platform" metadata.json)
+            BASENAME=$(jq -r ".artifacts[\"$KEY\"].filename" metadata.json)
 
-            echo "Processing $MAIN"
+            echo "Processing platform: $PLATFORM"
+            echo "Base filename: $BASENAME"
 
-            # Falls kein .jar am Ende steht, automatisch ergänzen
-            if [[ "$MAIN" != *.jar ]]; then
-              MAIN="${MAIN}.jar"
-            fi
+            # Ordner: <platform>/build/libs/
+            DIR="$PLATFORM/build/libs"
 
-            MAIN_PATH=$(find . -type f -name "$MAIN" | head -n 1)
-
-            if [ -z "$MAIN_PATH" ]; then
-              echo "ERROR: Could not find artifact: $MAIN"
+            if [ ! -d "$DIR" ]; then
+              echo "ERROR: Directory not found: $DIR"
               exit 1
             fi
 
-            DIR=$(dirname "$MAIN_PATH")
-            FILES="$FILES $MAIN_PATH"
+            # Hauptdatei
+            MAIN_JAR="$DIR/${BASENAME}.jar"
+            if [ ! -f "$MAIN_JAR" ]; then
+              echo "ERROR: Could not find main artifact: $MAIN_JAR"
+              exit 1
+            fi
+            FILES="$FILES $MAIN_JAR"
 
-            for f in "$DIR"/*sources.jar; do
-              [ -e "$f" ] && FILES="$FILES $f"
-            done
+            # Sources
+            SOURCES_JAR="$DIR/${BASENAME}-sources.jar"
+            if [ -f "$SOURCES_JAR" ]; then
+              echo "Found sources: $SOURCES_JAR"
+              FILES="$FILES $SOURCES_JAR"
+            fi
 
-            for f in "$DIR"/*javadoc.jar; do
-              [ -e "$f" ] && FILES="$FILES $f"
-            done
+            # Javadoc
+            JAVADOC_JAR="$DIR/${BASENAME}-javadoc.jar"
+            if [ -f "$JAVADOC_JAR" ]; then
+              echo "Found javadoc: $JAVADOC_JAR"
+              FILES="$FILES $JAVADOC_JAR"
+            fi
           done
 
           echo "FILES<<EOF" >> $GITHUB_ENV
