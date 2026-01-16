@@ -127,32 +127,31 @@ jobs:
         id: collect
         run: |
           FILES=""
-
-          for BASE in $(jq -r '.artifacts[].filename' metadata.json); do
-            echo "Processing artifact base name: $BASE"
-
-            # Haupt-JAR (Basename + .jar)
-            MAIN_PATH=$(find . -type f -name "${BASE}.jar" | head -n 1)
-
+          for FILENAME_BASE in $(jq -r '.artifacts[].filename' metadata.json); do
+            echo "Searching for artifacts starting with: $FILENAME_BASE"
+          
+            MAIN_PATH=$(find . -type f -name "${FILENAME_BASE}.jar" ! -name "*-sources.jar" ! -name "*-javadoc.jar" | head -n 1)
+          
             if [ -z "$MAIN_PATH" ]; then
-              echo "ERROR: Could not find main artifact: ${BASE}.jar"
+              echo "ERROR: Could not find main artifact for: $FILENAME_BASE"
               exit 1
             fi
-
+          
+            echo "Found main artifact: $MAIN_PATH"
             DIR=$(dirname "$MAIN_PATH")
             FILES="$FILES $MAIN_PATH"
-
-            # Sources (optional, flexibel)
-            for f in "$DIR"/${BASE}*-sources.jar; do
-              [ -e "$f" ] && FILES="$FILES $f"
-            done
-
-            # Javadoc (optional, flexibel)
-            for f in "$DIR"/${BASE}*-javadoc.jar; do
-              [ -e "$f" ] && FILES="$FILES $f"
-            done
+          
+            if [ -f "${DIR}/${FILENAME_BASE}-sources.jar" ]; then
+              FILES="$FILES ${DIR}/${FILENAME_BASE}-sources.jar"
+              echo "Added sources: ${FILENAME_BASE}-sources.jar"
+            fi
+          
+            if [ -f "${DIR}/${FILENAME_BASE}-javadoc.jar" ]; then
+              FILES="$FILES ${DIR}/${FILENAME_BASE}-javadoc.jar"
+              echo "Added javadoc: ${FILENAME_BASE}-javadoc.jar"
+            fi
           done
-
+          
           echo "FILES<<EOF" >> $GITHUB_ENV
           for f in $FILES; do
             echo "$f" >> $GITHUB_ENV
