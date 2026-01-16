@@ -119,6 +119,11 @@ jobs:
           for TARGET in ${{ steps.targets.outputs.targets }}; do
             echo "Processing target branch: $TARGET"
 
+            if ! git ls-remote --exit-code --heads origin "$TARGET" > /dev/null; then
+              echo "⚠️ Branch '$TARGET' doesn't exist. Skip..."
+              continue
+            fi
+
             SAFE_FEATURE_BRANCH=$(echo "$FEATURE_BRANCH" | tr '/' '-')
             SAFE_TARGET=$(echo "$TARGET" | tr '/' '-')
 
@@ -126,12 +131,14 @@ jobs:
 
             git checkout -b "$BACKPORT_BRANCH" "origin/$TARGET"
             git merge --no-ff "origin/$FEATURE_BRANCH" || true
+
             if ! git diff --quiet; then
               git add -A
               git commit -m "Auto-Port of PR #${PR_NUMBER} from $FEATURE_BRANCH" || true
             fi
 
             git push origin "$BACKPORT_BRANCH"
+
             gh pr create \
               --base "$TARGET" \
               --head "$BACKPORT_BRANCH" \
