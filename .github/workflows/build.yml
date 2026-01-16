@@ -76,8 +76,8 @@ jobs:
 
             # sources + javadoc (optional)
             for JAR in \
-              "$DIR"/${BASE}-*-sources.jar \
-              "$DIR"/${BASE}-*-javadoc.jar; do
+              "$DIR"/${BASE}*-sources.jar \
+              "$DIR"/${BASE}*-javadoc.jar; do
               [ -e "$JAR" ] && FILES+="$JAR"$'\n'
             done
           done
