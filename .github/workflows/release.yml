@@ -128,43 +128,29 @@ jobs:
         run: |
           FILES=""
 
-          # Iteriere über die Keys des artifacts-Objekts
-          for KEY in $(jq -r '.artifacts | keys[]' metadata.json); do
-            PLATFORM=$(jq -r ".artifacts[\"$KEY\"].platform" metadata.json)
-            BASENAME=$(jq -r ".artifacts[\"$KEY\"].filename" metadata.json)
+          for BASE in $(jq -r '.artifacts[].filename' metadata.json); do
+            echo "Processing artifact base name: $BASE"
 
-            echo "Processing platform: $PLATFORM"
-            echo "Base filename: $BASENAME"
+            # Haupt-JAR (Basename + .jar)
+            MAIN_PATH=$(find . -type f -name "${BASE}.jar" | head -n 1)
 
-            # Ordner: <platform>/build/libs/
-            DIR="$PLATFORM/build/libs"
-
-            if [ ! -d "$DIR" ]; then
-              echo "ERROR: Directory not found: $DIR"
+            if [ -z "$MAIN_PATH" ]; then
+              echo "ERROR: Could not find main artifact: ${BASE}.jar"
               exit 1
             fi
 
-            # Hauptdatei
-            MAIN_JAR="$DIR/${BASENAME}.jar"
-            if [ ! -f "$MAIN_JAR" ]; then
-              echo "ERROR: Could not find main artifact: $MAIN_JAR"
-              exit 1
-            fi
-            FILES="$FILES $MAIN_JAR"
+            DIR=$(dirname "$MAIN_PATH")
+            FILES="$FILES $MAIN_PATH"
 
-            # Sources
-            SOURCES_JAR="$DIR/${BASENAME}-sources.jar"
-            if [ -f "$SOURCES_JAR" ]; then
-              echo "Found sources: $SOURCES_JAR"
-              FILES="$FILES $SOURCES_JAR"
-            fi
+            # Sources (optional, flexibel)
+            for f in "$DIR"/${BASE}*-sources.jar; do
+              [ -e "$f" ] && FILES="$FILES $f"
+            done
 
-            # Javadoc
-            JAVADOC_JAR="$DIR/${BASENAME}-javadoc.jar"
-            if [ -f "$JAVADOC_JAR" ]; then
-              echo "Found javadoc: $JAVADOC_JAR"
-              FILES="$FILES $JAVADOC_JAR"
-            fi
+            # Javadoc (optional, flexibel)
+            for f in "$DIR"/${BASE}*-javadoc.jar; do
+              [ -e "$f" ] && FILES="$FILES $f"
+            done
           done
 
           echo "FILES<<EOF" >> $GITHUB_ENV
@@ -172,6 +158,7 @@ jobs:
             echo "$f" >> $GITHUB_ENV
           done
           echo "EOF" >> $GITHUB_ENV
+
 
       - name: Load changelog
         id: changelog
