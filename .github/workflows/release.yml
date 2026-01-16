@@ -75,6 +75,10 @@ jobs:
 
       - name: Read metadata
         run: |
+
+          echo "===== Pretty‑printed metadata.json ====="
+          jq . metadata.json || echo "jq failed or metadata.json invalid"
+
           MOD_ID=$(jq -r '.mod_id' metadata.json)
           MOD_NAME=$(jq -r '.display_name' metadata.json)
           MC_VERSION=$(jq -r '.minecraft_version' metadata.json)
