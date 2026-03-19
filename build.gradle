@@ -2,8 +2,7 @@ plugins {
     id 'dev.architectury.loom' version '1.13-SNAPSHOT' apply false
     id 'architectury-plugin' version '3.4-SNAPSHOT'
     id 'com.github.johnrengelman.shadow' version '8.1.1' apply false
-    id "me.modmuss50.mod-publish-plugin" version "1.1.0"
-    id "net.mrjulsen.mod-build-tools" version "1.0.0"
+    id "net.mrjulsen.mod-build-tools" version "1.0.6"
 }
 
 architectury {
@@ -56,9 +55,6 @@ subprojects {
                 from components.java
             }
         }
-
-        repositories {
-        }
     }
 
     java {
@@ -71,10 +67,7 @@ subprojects {
 modBuildTools {
     publish {
         localRepoDir = "${System.getProperty('user.home')}/.m2/github/modsrepo/maven"
-        s3Bucket = "maven"
-        endpointEnv = System.getenv("MAVEN_ENDPOINT")
-        accessKeyEnv = System.getenv("MAVEN_ACCESS_KEY")
-        secretKeyEnv = System.getenv("MAVEN_SECRET_KEY")
+        githubPackagesUrl = "https://maven.pkg.github.com/MisterJulsen/github_test_mod"
         publishCommon = false
     }
     javadoc {

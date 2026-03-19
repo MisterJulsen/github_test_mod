@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata>
+  <groupId>de.mrjulsen</groupId>
+  <artifactId>GitHubTestMod-fabric</artifactId>
+  <versioning>
+    <latest>1.20.1-1.2.3-beta</latest>
+    <release>1.20.1-1.2.3-beta</release>
+    <versions>
+      <version>1.20.1-1.2.3-beta</version>
+    </versions>
+    <lastUpdated>20260124203650</lastUpdated>
+  </versioning>
+</metadata>

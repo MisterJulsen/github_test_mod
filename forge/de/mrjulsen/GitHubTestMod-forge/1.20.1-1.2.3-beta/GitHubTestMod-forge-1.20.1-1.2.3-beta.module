@@ -1,0 +1,129 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "de.mrjulsen",
+    "module": "GitHubTestMod-forge",
+    "version": "1.20.1-1.2.3-beta",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.12.1"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 17,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "files": [
+        {
+          "name": "GitHubTestMod-forge-1.20.1-1.2.3-beta.jar",
+          "url": "GitHubTestMod-forge-1.20.1-1.2.3-beta.jar",
+          "size": 4217,
+          "sha512": "83dce4ce457ffd90a05aaab0e94ccdab8da193a26abe3e41aef4e2539fdfe660ae54c96a81e64da7a87d03b2b2651f184461ea150b8413cc7671a3dba37ba55b",
+          "sha256": "fbae3b863466d5667e63b4c6de269ca2fdcc68489e16290c7ee578cae8f92ed4",
+          "sha1": "dc922256923f66efd7187fd764e2dc35ca02833b",
+          "md5": "5ec372e3df60058b8f2a49f977b2b478"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 17,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "dev.architectury",
+          "module": "architectury-forge",
+          "version": {
+            "requires": "9.2.14"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "GitHubTestMod-forge-1.20.1-1.2.3-beta.jar",
+          "url": "GitHubTestMod-forge-1.20.1-1.2.3-beta.jar",
+          "size": 4217,
+          "sha512": "83dce4ce457ffd90a05aaab0e94ccdab8da193a26abe3e41aef4e2539fdfe660ae54c96a81e64da7a87d03b2b2651f184461ea150b8413cc7671a3dba37ba55b",
+          "sha256": "fbae3b863466d5667e63b4c6de269ca2fdcc68489e16290c7ee578cae8f92ed4",
+          "sha1": "dc922256923f66efd7187fd764e2dc35ca02833b",
+          "md5": "5ec372e3df60058b8f2a49f977b2b478"
+        }
+      ]
+    },
+    {
+      "name": "sourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "GitHubTestMod-forge-1.20.1-1.2.3-beta-sources.jar",
+          "url": "GitHubTestMod-forge-1.20.1-1.2.3-beta-sources.jar",
+          "size": 2477,
+          "sha512": "419c1be2c6cd4a662c9df583fb8f24bbe24cfb24bc5c940ac3ef69a0c928da9abd9326a10e72fd698348f4e6b2281ea4ab8d0fc67b44743242cbe0e6fb2ae21e",
+          "sha256": "9d541ca1d4f4c7da17ae474c581c508d7080c923ca62d743c053a365bffc328e",
+          "sha1": "144d420b2224f2f8f7b9dc4136f4a6a9f57a1ad1",
+          "md5": "d853e932eee278555dabc9d94c88b0bd"
+        }
+      ]
+    },
+    {
+      "name": "javadocElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "javadoc",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "GitHubTestMod-forge-1.20.1-1.2.3-beta-javadoc.jar",
+          "url": "GitHubTestMod-forge-1.20.1-1.2.3-beta-javadoc.jar",
+          "size": 82607,
+          "sha512": "dfd5a28ecaea1e57e72d300dc0a311fbe913acdddb1948d9e15ad549491c5751a6b2c928872bb04ea2397dbbd9f8e8d8337f56948a1892a931e6a775070aea0e",
+          "sha256": "8ed8b3c1808c7b7446f5bee68c4158626d0a63bcc6f67294ec1a4686d0e50b79",
+          "sha1": "50f2cb517df8e5929d0a725501f6577d8ea2bdb5",
+          "md5": "19c6608911e6070773fb3d8a38a9eab4"
+        }
+      ]
+    },
+    {
+      "name": "shadowRuntimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "shadowed",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "GitHubTestMod-forge-1.20.1-1.2.3-beta-dev-shadow.jar",
+          "url": "GitHubTestMod-forge-1.20.1-1.2.3-beta-dev-shadow.jar",
+          "size": 4011,
+          "sha512": "be84c6169cd76c2f9112acbb0a35bdcdc69fb7cfed759f1887c615fcb508476f823103ada5a40038a400a0ff110be9b4ffa4c2c13b979004cae18d1c8f9cb0fe",
+          "sha256": "9a0e86950356460bb57a83027cc09ae7a52f50c5480cabdfdfc4b52948dad9b8",
+          "sha1": "a174c23ec31b545b90f8206e6d207ccda89a1e6e",
+          "md5": "9abdaf418dd27b6c6c1b2ff015ff646a"
+        }
+      ]
+    }
+  ]
+}

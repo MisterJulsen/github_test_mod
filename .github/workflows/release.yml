@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       publish_maven:
-        description: "Publish Maven (S3)"
+        description: "Publish to GitHub Packages (Maven)"
         required: false
         type: boolean
         default: true
@@ -14,9 +14,9 @@ on:
         type: boolean
         default: true
 
-
 permissions:
   contents: write
+  packages: write   # required for GitHub Packages / Maven
 
 jobs:
   build:
@@ -49,27 +49,28 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle.properties', '**/libs.versions.toml') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-home-cache-cleanup: true
           gradle-version: wrapper
 
-      - name: Build
+      - name: Build & publish
         env:
-          MAVEN_ENDPOINT: ${{ secrets.MAVEN_ENDPOINT }}
-          MAVEN_ACCESS_KEY: ${{ secrets.MAVEN_ACCESS_KEY }}
-          MAVEN_SECRET_KEY: ${{ secrets.MAVEN_SECRET_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
         run: |
           chmod +x gradlew
-          
+
           if [ "${{ github.event.inputs.publish_maven }}" = "true" ]; then
-            echo "Publishing to Maven (S3)…"
-            ./gradlew publishS3
+            echo "Publishing to GitHub Packages (Maven)…"
+            ./gradlew publishGitHub
           else
-            echo "Publishing locally…"
-            ./gradlew publishLocal
+            echo "Publishing locally only…"
+            ./gradlew publishPrivate
           fi
+
       - name: Read metadata
         run: |
           MOD_ID=$(jq -r '.mod_id' metadata.json)
@@ -78,7 +79,7 @@ jobs:
           MOD_VERSION=$(jq -r '.mod_version' metadata.json)
           FULL_VERSION=$(jq -r '.full_version' metadata.json)
           RELEASE_CHANNEL=$(jq -r '.release_channel' metadata.json)
-          
+
           PLATFORM_STRING=$(jq -r '
             if has("artifacts") and (.artifacts | length > 0) then
               "[" + (.artifacts | keys | map(ascii_upcase) | join("/")) + "]"
@@ -86,9 +87,9 @@ jobs:
               "[]"
             end
           ' metadata.json)
-          
+
           TITLE_FORMAT=$(jq -r '.github_release_title_format' .mod-build-config.json)
-          
+
           RELEASE_TITLE=$TITLE_FORMAT
           RELEASE_TITLE=${RELEASE_TITLE//\{MOD_ID\}/$MOD_ID}
           RELEASE_TITLE=${RELEASE_TITLE//\{MOD_NAME\}/$MOD_NAME}
@@ -97,20 +98,20 @@ jobs:
           RELEASE_TITLE=${RELEASE_TITLE//\{MC_VERSION\}/$MC_VERSION}
           RELEASE_TITLE=${RELEASE_TITLE//\{RELEASE_CHANNEL\}/$RELEASE_CHANNEL}
           RELEASE_TITLE=${RELEASE_TITLE//\{PLATFORMS\}/$PLATFORM_STRING}
-          
-          echo "MOD_ID=$MOD_ID" >> $GITHUB_ENV
-          echo "MOD_NAME=$MOD_NAME" >> $GITHUB_ENV
-          echo "MC_VERSION=$MC_VERSION" >> $GITHUB_ENV
-          echo "MOD_VERSION=$MOD_VERSION" >> $GITHUB_ENV
-          echo "FULL_VERSION=$FULL_VERSION" >> $GITHUB_ENV
+
+          echo "MOD_ID=$MOD_ID"               >> $GITHUB_ENV
+          echo "MOD_NAME=$MOD_NAME"           >> $GITHUB_ENV
+          echo "MC_VERSION=$MC_VERSION"       >> $GITHUB_ENV
+          echo "MOD_VERSION=$MOD_VERSION"     >> $GITHUB_ENV
+          echo "FULL_VERSION=$FULL_VERSION"   >> $GITHUB_ENV
           echo "RELEASE_CHANNEL=$RELEASE_CHANNEL" >> $GITHUB_ENV
-          echo "PLATFORMS=$PLATFORM_STRING" >> $GITHUB_ENV
+          echo "PLATFORMS=$PLATFORM_STRING"   >> $GITHUB_ENV
           echo "RELEASE_TITLE=$RELEASE_TITLE" >> $GITHUB_ENV
 
       - name: Generate changelog
         run: |
-          sudo apt-get update
-          sudo apt-get install -y jq
+          sudo apt-get update -q
+          sudo apt-get install -y -q jq
           curl -fsSL \
             https://files.mrjulsen.net/scripts/java/generate_changelog.sh \
             -o generate_changelog.sh
@@ -118,7 +119,6 @@ jobs:
           ./generate_changelog.sh "${{ env.FULL_VERSION }}" "${{ env.MOD_NAME }}"
 
       - name: Collect release files
-        id: collect
         run: |
           FILES=""
           for MAIN in $(jq -r '.artifacts[].filename' metadata.json); do
@@ -150,6 +150,7 @@ jobs:
           echo "content<<EOF" >> $GITHUB_OUTPUT
           echo "$CONTENT" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Upload Release Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -158,6 +159,7 @@ jobs:
             ${{ env.FILES }}
             metadata.json
             CHANGELOG.md
+
       - name: Create GitHub Release Draft
         uses: softprops/action-gh-release@v2
         with:
