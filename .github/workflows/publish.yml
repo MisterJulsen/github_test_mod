@@ -95,15 +95,18 @@ jobs:
           LOADERS_JSON=$(jq -c '[.artifacts[].platform] | unique' "$META")
           echo "loaders=$LOADERS_JSON" >> "$GITHUB_OUTPUT"
 
-          # Per-loader file lists – sources from the GitHub Release Assets
-          # (the platform JARs that were attached to the draft)
+          # Per-loader file lists – built from metadata.json, no filesystem access needed.
+          # The filenames follow the Gradle archive naming convention:
+          #   main:    <filename>.jar
+          #   sources: <filename>-sources.jar  (only if withSourcesJar() is configured)
+          #   javadoc: <filename>-javadoc.jar  (only if withJavadocJar() is configured)
+          # mc-publish silently skips entries that don't exist as release assets.
           jq -r '.artifacts | to_entries[] | "\(.key) \(.value.filename)"' "$META" \
             | while read -r loader filename; do
                 {
                   echo "release-assets/${filename}.jar"
-                  find release-assets/ -maxdepth 1 \
-                    \( -name "*${loader}*sources.jar" -o -name "*${loader}*javadoc.jar" \) \
-                    2>/dev/null || true
+                  echo "release-assets/${filename}-sources.jar"
+                  echo "release-assets/${filename}-javadoc.jar"
                 } > "files_${loader}.txt"
                 echo "=== files_${loader}.txt ==="
                 cat "files_${loader}.txt"
