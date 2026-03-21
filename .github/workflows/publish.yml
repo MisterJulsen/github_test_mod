@@ -17,6 +17,7 @@ jobs:
       release_channel: ${{ steps.parse.outputs.release_channel }}
       full_version: ${{ steps.parse.outputs.full_version }}
       maven_group: ${{ steps.parse.outputs.maven_group }}
+      maven_local_path: ${{ steps.parse.outputs.maven_local_path }}
 
     steps:
       - name: Checkout release commit
@@ -60,6 +61,8 @@ jobs:
           TITLE=${TITLE//\{RELEASE_CHANNEL\}/$RELEASE_CHANNEL}
           TITLE=${TITLE//\{PLATFORMS\}/$PLATFORM_STRING}
 
+          MAVEN_LOCAL_PATH=$(jq -r '.maven_local_path' "$META")
+
           {
             echo "mod_id=$MOD_ID"
             echo "mod_name=$MOD_NAME"
@@ -68,6 +71,7 @@ jobs:
             echo "full_version=$FULL_VERSION"
             echo "release_channel=$RELEASE_CHANNEL"
             echo "maven_group=$MAVEN_GROUP"
+            echo "maven_local_path=$MAVEN_LOCAL_PATH"
             echo "platforms=$PLATFORM_STRING"
             echo "release_title=$TITLE"
           } >> "$GITHUB_OUTPUT"
@@ -170,18 +174,41 @@ jobs:
           curseforge-id: ${{ secrets.CF_ID }}
           curseforge-token: ${{ secrets.CF_TOKEN }}
 
-  # Maven – einmaliger Push nach mod-resources, alle Loader in einem Commit
+  # Maven – Gradle publishLocal → mod-resources → push
+  # Gradle handles all Maven layout details: POMs, checksums (md5/sha1/sha256/sha512),
+  # maven-metadata.xml versioning. No manual reimplementation needed.
   publish-maven:
     needs: prepare
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download release assets
-        uses: robinraju/release-downloader@v1
+      - name: Checkout release commit
+        uses: actions/checkout@v4
         with:
-          tag: ${{ github.event.release.tag_name }}
-          fileName: "*"
-          out-file-path: artifacts
+          ref: ${{ github.event.release.target_commitish }}
+          fetch-depth: 0
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Cache Gradle & Loom
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            **/.gradle/loom-cache
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle.properties', '**/libs.versions.toml') }}
+          restore-keys: ${{ runner.os }}-gradle-
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-home-cache-cleanup: true
+          gradle-version: wrapper
 
       - name: Setup SSH deploy key
         run: |
@@ -191,102 +218,25 @@ jobs:
           ssh-keyscan github.com >> ~/.ssh/known_hosts
           echo "GIT_SSH_COMMAND=ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" >> "$GITHUB_ENV"
 
-      - name: Clone mod-resources
-        run: git clone git@github.com:MisterJulsen/mod-resources.git /tmp/mod-resources
-
-      - name: Publish all loaders to Maven
-        env:
-          META: artifacts/metadata.json
-          MAVEN_ROOT: /tmp/mod-resources/maven
-          FULL_VERSION: ${{ needs.prepare.outputs.full_version }}
-          MAVEN_GROUP: ${{ needs.prepare.outputs.maven_group }}
+      # Clone mod-resources directly into the path that localRepoDir points to.
+      # Gradle's publishLocal will then write into this directory, and we just
+      # commit whatever changed – no manual POM/checksum generation needed.
+      - name: Clone mod-resources into localRepoDir
         run: |
-          # Convert group ID to path: de.mrjulsen → de/mrjulsen
-          GROUP_PATH="${MAVEN_GROUP//.//}"
-          MOD_ID=$(jq -r '.mod_id' "$META")
+          MAVEN_LOCAL_PATH="${{ needs.prepare.outputs.maven_local_path }}"
+          mkdir -p "$(dirname "$MAVEN_LOCAL_PATH")"
+          git clone git@github.com:MisterJulsen/mod-resources.git "$MAVEN_LOCAL_PATH"
+          echo "Cloned mod-resources into: $MAVEN_LOCAL_PATH"
 
-          jq -r '.artifacts | to_entries[] | "\(.key) \(.value.filename)"' "$META" \
-            | while read -r loader filename; do
-                JAR="artifacts/${filename}.jar"
-                [ -f "$JAR" ] || { echo "Warning: $JAR not found, skipping" >&2; continue; }
-
-                ARTIFACT_ID="${MOD_ID}-${loader}"
-                DEPLOY_DIR="${MAVEN_ROOT}/${GROUP_PATH}/${ARTIFACT_ID}/${FULL_VERSION}"
-                mkdir -p "$DEPLOY_DIR"
-
-                # JAR
-                DEST="${DEPLOY_DIR}/${ARTIFACT_ID}-${FULL_VERSION}.jar"
-                cp "$JAR" "$DEST"
-                md5sum  "$DEST" | awk '{print $1}' > "${DEST}.md5"
-                sha1sum "$DEST" | awk '{print $1}' > "${DEST}.sha1"
-
-                # sources.jar (optional)
-                SOURCES=$(find artifacts/ -maxdepth 1 -name "*${loader}*sources.jar" | head -n1 || true)
-                if [ -n "$SOURCES" ]; then
-                  DEST_SRC="${DEPLOY_DIR}/${ARTIFACT_ID}-${FULL_VERSION}-sources.jar"
-                  cp "$SOURCES" "$DEST_SRC"
-                  md5sum  "$DEST_SRC" | awk '{print $1}' > "${DEST_SRC}.md5"
-                  sha1sum "$DEST_SRC" | awk '{print $1}' > "${DEST_SRC}.sha1"
-                fi
-
-                # POM
-                POM="${DEPLOY_DIR}/${ARTIFACT_ID}-${FULL_VERSION}.pom"
-                cat > "$POM" << EOF
-          <?xml version="1.0" encoding="UTF-8"?>
-          <project xmlns="http://maven.apache.org/POM/4.0.0"
-                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
-                                       http://maven.apache.org/xsd/maven-4.0.0.xsd">
-            <modelVersion>4.0.0</modelVersion>
-            <groupId>${MAVEN_GROUP}</groupId>
-            <artifactId>${ARTIFACT_ID}</artifactId>
-            <version>${FULL_VERSION}</version>
-            <packaging>jar</packaging>
-          </project>
-          EOF
-                md5sum  "$POM" | awk '{print $1}' > "${POM}.md5"
-                sha1sum "$POM" | awk '{print $1}' > "${POM}.sha1"
-
-                # maven-metadata.xml
-                META_DIR="${MAVEN_ROOT}/${GROUP_PATH}/${ARTIFACT_ID}"
-                META_FILE="${META_DIR}/maven-metadata.xml"
-
-                if [ -f "$META_FILE" ]; then
-                  mapfile -t VERSIONS < <(grep -oP '(?<=<version>)[^<]+' "$META_FILE" || true)
-                else
-                  VERSIONS=()
-                fi
-
-                if [[ ! " ${VERSIONS[*]:-} " =~ " ${FULL_VERSION} " ]]; then
-                  VERSIONS+=("$FULL_VERSION")
-                fi
-
-                LATEST="${VERSIONS[-1]}"
-                UPDATED=$(date -u +"%Y%m%d%H%M%S")
-                {
-                  echo '<?xml version="1.0" encoding="UTF-8"?>'
-                  echo '<metadata>'
-                  echo "  <groupId>${MAVEN_GROUP}</groupId>"
-                  echo "  <artifactId>${ARTIFACT_ID}</artifactId>"
-                  echo "  <versioning>"
-                  echo "    <latest>${LATEST}</latest>"
-                  echo "    <release>${LATEST}</release>"
-                  echo "    <versions>"
-                  for v in "${VERSIONS[@]}"; do echo "      <version>${v}</version>"; done
-                  echo "    </versions>"
-                  echo "    <lastUpdated>${UPDATED}</lastUpdated>"
-                  echo "  </versioning>"
-                  echo '</metadata>'
-                } > "$META_FILE"
-                md5sum  "$META_FILE" | awk '{print $1}' > "${META_FILE}.md5"
-                sha1sum "$META_FILE" | awk '{print $1}' > "${META_FILE}.sha1"
-
-                echo "Prepared: ${MAVEN_GROUP}:${ARTIFACT_ID}:${FULL_VERSION}"
-              done
+      - name: Publish to local Maven (Gradle)
+        run: |
+          chmod +x gradlew
+          ./gradlew publishLocal
 
       - name: Commit and push to mod-resources
         run: |
-          cd /tmp/mod-resources
+          MAVEN_LOCAL_PATH="${{ needs.prepare.outputs.maven_local_path }}"
+          cd "$MAVEN_LOCAL_PATH"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name  "github-actions[bot]"
           git add maven/
