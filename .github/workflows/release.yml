@@ -45,11 +45,43 @@ jobs:
           gradle-home-cache-cleanup: true
           gradle-version: wrapper
 
-      - name: Build
+      # ── Platform build ─────────────────────────────────────────────────────
+      # Produces full JARs for players (large, with bundled deps if configured).
+      # These go into the GitHub Draft Release and later to CurseForge/Modrinth.
+      - name: Build platform JARs
         run: |
           chmod +x gradlew
-          ./gradlew build
+          ./gradlew buildWithMetadata -PbuildProfile=platform
 
+      - name: Collect platform JARs
+        id: platform
+        run: |
+          {
+            echo "files<<EOF"
+            for STEM in $(jq -r '.artifacts[].filename' metadata.json); do
+              MAIN=$(find . -type f -name "${STEM}.jar" ! -path "*/.gradle/*" | head -n1)
+              if [ -z "$MAIN" ]; then
+                echo "ERROR: Artifact not found: ${STEM}.jar" >&2
+                exit 1
+              fi
+              echo "$MAIN"
+              DIR=$(dirname "$MAIN")
+              find "$DIR" -maxdepth 1 \
+                \( -name "*sources.jar" -o -name "*javadoc.jar" \) \
+                2>/dev/null || true
+            done
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      # ── Maven build ────────────────────────────────────────────────────────
+      # Produces slim JARs for developers (no bundled deps).
+      # publishLocal writes into localRepoDir as configured in build.gradle.
+      # The result is stored as an Actions Artifact – internal only, not in
+      # the GitHub Release. publish.yml picks it up after your approval.
+      - name: Publish Maven JARs (local staging)
+        run: ./gradlew publishLocal -PbuildProfile=maven
+
+      # ── Read metadata ──────────────────────────────────────────────────────
       - name: Read metadata
         id: meta
         run: |
@@ -61,6 +93,7 @@ jobs:
           MOD_VERSION=$(get '.mod_version')
           FULL_VERSION=$(get '.full_version')
           RELEASE_CHANNEL=$(get '.release_channel')
+          MAVEN_LOCAL_PATH=$(get '.maven_local_path')
 
           PLATFORM_STRING=$(jq -r '
             if (.artifacts | length) > 0 then
@@ -84,42 +117,26 @@ jobs:
             echo "mod_version=$MOD_VERSION"
             echo "full_version=$FULL_VERSION"
             echo "release_channel=$RELEASE_CHANNEL"
-            echo "platforms=$PLATFORM_STRING"
+            echo "maven_local_path=$MAVEN_LOCAL_PATH"
             echo "release_title=$TITLE"
           } >> "$GITHUB_OUTPUT"
 
+      # ── Changelog ──────────────────────────────────────────────────────────
       - name: Download changelog script
         env:
           SCRIPT_COMMIT: ${{ vars.CHANGELOG_SCRIPT_COMMIT }}
         run: |
+          if [ -z "$SCRIPT_COMMIT" ]; then
+            echo "Error: CHANGELOG_SCRIPT_COMMIT variable is not set." >&2
+            exit 1
+          fi
           curl -fsSL \
-            "https://raw.githubusercontent.com/MisterJulsen/mod-resources/main/data/build-tools/generate_changelog.sh" \
+            "https://raw.githubusercontent.com/MisterJulsen/mod-resources/main/data/generate_changelog.sh" \
             -o generate_changelog.sh
           chmod +x generate_changelog.sh
 
       - name: Generate changelog
         run: ./generate_changelog.sh "${{ steps.meta.outputs.full_version }}" "${{ steps.meta.outputs.mod_name }}"
-
-      - name: Collect release files
-        id: collect
-        run: |
-          {
-            echo "files<<EOF"
-            for STEM in $(jq -r '.artifacts[].filename' metadata.json); do
-              MAIN=$(find . -type f -name "${STEM}.jar" ! -path "*/.gradle/*" | head -n1)
-              if [ -z "$MAIN" ]; then
-                echo "ERROR: Artifact not found: ${STEM}.jar" >&2
-                exit 1
-              fi
-              echo "$MAIN"
-              DIR=$(dirname "$MAIN")
-              find "$DIR" -maxdepth 1 \
-                \( -name "*sources.jar" -o -name "*javadoc.jar" \) \
-                2>/dev/null || true
-            done
-            echo "metadata.json"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
 
       - name: Load changelog
         id: changelog
@@ -130,15 +147,21 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Upload build artifact
+      # ── Internal Actions Artifact ──────────────────────────────────────────
+      # Stores the Maven staging directory and metadata.json for publish.yml.
+      # Not visible in the GitHub Release – only accessible in the Actions run.
+      - name: Upload internal build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ steps.meta.outputs.full_version }}
+          name: internal-${{ steps.meta.outputs.full_version }}
           path: |
-            ${{ steps.collect.outputs.files }}
-            CHANGELOG.md
+            ${{ steps.meta.outputs.maven_local_path }}
+            metadata.json
           retention-days: 30
 
+      # ── GitHub Draft Release ───────────────────────────────────────────────
+      # Contains only the platform JARs and the editable changelog.
+      # metadata.json and Maven files are intentionally excluded.
       - name: Create GitHub Release Draft
         uses: softprops/action-gh-release@v2
         with:
@@ -150,6 +173,6 @@ jobs:
           body: |
             ${{ inputs.trigger_mod_publish == false && '[skip-mod-publish]' || '' }}
             ${{ steps.changelog.outputs.content }}
-          files: ${{ steps.collect.outputs.files }}
+          files: ${{ steps.platform.outputs.files }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

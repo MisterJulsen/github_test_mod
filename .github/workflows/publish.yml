@@ -16,8 +16,8 @@ jobs:
       mc_version: ${{ steps.parse.outputs.mc_version }}
       release_channel: ${{ steps.parse.outputs.release_channel }}
       full_version: ${{ steps.parse.outputs.full_version }}
-      maven_group: ${{ steps.parse.outputs.maven_group }}
       maven_local_path: ${{ steps.parse.outputs.maven_local_path }}
+      internal_artifact_name: ${{ steps.parse.outputs.internal_artifact_name }}
 
     steps:
       - name: Checkout release commit
@@ -26,17 +26,19 @@ jobs:
           ref: ${{ github.event.release.target_commitish }}
           fetch-depth: 0
 
-      - name: Download release assets
-        uses: robinraju/release-downloader@v1
+      # metadata.json comes from the internal Actions Artifact (not the release assets).
+      # The artifact name is "internal-<full_version>" as set in release.yml.
+      # We derive the name from the release tag which equals full_version.
+      - name: Download internal artifact
+        uses: actions/download-artifact@v4
         with:
-          tag: ${{ github.event.release.tag_name }}
-          fileName: "*"
-          out-file-path: artifacts
+          name: internal-${{ github.event.release.tag_name }}
+          path: internal/
 
       - name: Parse metadata and build loader matrix
         id: parse
         run: |
-          META="artifacts/metadata.json"
+          META="internal/metadata.json"
 
           MOD_ID=$(jq -r '.mod_id' "$META")
           MOD_NAME=$(jq -r '.display_name' "$META")
@@ -44,7 +46,7 @@ jobs:
           MOD_VERSION=$(jq -r '.mod_version' "$META")
           FULL_VERSION=$(jq -r '.full_version' "$META")
           RELEASE_CHANNEL=$(jq -r '.release_channel' "$META")
-          MAVEN_GROUP=$(jq -r '.maven_group' "$META")
+          MAVEN_LOCAL_PATH=$(jq -r '.maven_local_path' "$META")
 
           PLATFORM_STRING=$(jq -r '
             if (.artifacts | length) > 0 then
@@ -61,8 +63,6 @@ jobs:
           TITLE=${TITLE//\{RELEASE_CHANNEL\}/$RELEASE_CHANNEL}
           TITLE=${TITLE//\{PLATFORMS\}/$PLATFORM_STRING}
 
-          MAVEN_LOCAL_PATH=$(jq -r '.maven_local_path' "$META")
-
           {
             echo "mod_id=$MOD_ID"
             echo "mod_name=$MOD_NAME"
@@ -70,20 +70,21 @@ jobs:
             echo "mod_version=$MOD_VERSION"
             echo "full_version=$FULL_VERSION"
             echo "release_channel=$RELEASE_CHANNEL"
-            echo "maven_group=$MAVEN_GROUP"
             echo "maven_local_path=$MAVEN_LOCAL_PATH"
-            echo "platforms=$PLATFORM_STRING"
             echo "release_title=$TITLE"
+            echo "internal_artifact_name=internal-${FULL_VERSION}"
           } >> "$GITHUB_OUTPUT"
 
           LOADERS_JSON=$(jq -c '[.artifacts[].platform] | unique' "$META")
           echo "loaders=$LOADERS_JSON" >> "$GITHUB_OUTPUT"
 
+          # Per-loader file lists – sources from the GitHub Release Assets
+          # (the platform JARs that were attached to the draft)
           jq -r '.artifacts | to_entries[] | "\(.key) \(.value.filename)"' "$META" \
             | while read -r loader filename; do
                 {
-                  echo "artifacts/${filename}.jar"
-                  find artifacts/ -maxdepth 1 \
+                  echo "release-assets/${filename}.jar"
+                  find release-assets/ -maxdepth 1 \
                     \( -name "*${loader}*sources.jar" -o -name "*${loader}*javadoc.jar" \) \
                     2>/dev/null || true
                 } > "files_${loader}.txt"
@@ -108,11 +109,10 @@ jobs:
           echo "Version:      ${{ steps.parse.outputs.mod_version }}"
           echo "Full:         ${{ steps.parse.outputs.full_version }}"
           echo "Channel:      ${{ steps.parse.outputs.release_channel }}"
-          echo "Maven Group:  ${{ steps.parse.outputs.maven_group }}"
           echo "Loaders:      ${{ steps.parse.outputs.loaders }}"
           echo "================================================"
 
-  # CurseForge & Modrinth – parallel per loader
+  # CurseForge & Modrinth – platform JARs from Release Assets, parallel per loader
   publish-platforms:
     needs: prepare
     runs-on: ubuntu-latest
@@ -129,12 +129,15 @@ jobs:
           ref: ${{ github.event.release.target_commitish }}
           fetch-depth: 0
 
+      # Download platform JARs from the GitHub Release Assets.
+      # These are exactly the files that were in the Draft Release –
+      # the ones you tested and approved.
       - name: Download release assets
         uses: robinraju/release-downloader@v1
         with:
           tag: ${{ github.event.release.tag_name }}
-          fileName: "*"
-          out-file-path: artifacts
+          fileName: "*.jar"
+          out-file-path: release-assets
 
       - name: Download loader file lists
         uses: actions/download-artifact@v4
@@ -174,41 +177,21 @@ jobs:
           curseforge-id: ${{ secrets.CF_ID }}
           curseforge-token: ${{ secrets.CF_TOKEN }}
 
-  # Maven – Gradle publishLocal → mod-resources → push
-  # Gradle handles all Maven layout details: POMs, checksums (md5/sha1/sha256/sha512),
-  # maven-metadata.xml versioning. No manual reimplementation needed.
+  # Maven – slim JARs from the internal Actions Artifact → mod-resources → push
+  # Gradle already wrote a complete Maven repo layout (POMs, all checksums,
+  # maven-metadata.xml) during the release.yml build. We just push it.
   publish-maven:
     needs: prepare
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout release commit
-        uses: actions/checkout@v4
+      # Download the internal artifact that was created during release.yml.
+      # It contains the complete Maven staging directory + metadata.json.
+      - name: Download internal artifact
+        uses: actions/download-artifact@v4
         with:
-          ref: ${{ github.event.release.target_commitish }}
-          fetch-depth: 0
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 21
-
-      - name: Cache Gradle & Loom
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-            **/.gradle/loom-cache
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle.properties', '**/libs.versions.toml') }}
-          restore-keys: ${{ runner.os }}-gradle-
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-home-cache-cleanup: true
-          gradle-version: wrapper
+          name: ${{ needs.prepare.outputs.internal_artifact_name }}
+          path: internal/
 
       - name: Setup SSH deploy key
         run: |
@@ -218,25 +201,34 @@ jobs:
           ssh-keyscan github.com >> ~/.ssh/known_hosts
           echo "GIT_SSH_COMMAND=ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" >> "$GITHUB_ENV"
 
-      # Clone mod-resources directly into the path that localRepoDir points to.
-      # Gradle's publishLocal will then write into this directory, and we just
-      # commit whatever changed – no manual POM/checksum generation needed.
-      - name: Clone mod-resources into localRepoDir
-        run: |
-          MAVEN_LOCAL_PATH="${{ needs.prepare.outputs.maven_local_path }}"
-          mkdir -p "$(dirname "$MAVEN_LOCAL_PATH")"
-          git clone git@github.com:MisterJulsen/mod-resources.git "$MAVEN_LOCAL_PATH"
-          echo "Cloned mod-resources into: $MAVEN_LOCAL_PATH"
+      - name: Clone mod-resources
+        run: git clone git@github.com:MisterJulsen/mod-resources.git /tmp/mod-resources
 
-      - name: Publish to local Maven (Gradle)
+      # The internal artifact contains the Maven staging directory.
+      # Its path inside the artifact mirrors the absolute localRepoDir path,
+      # e.g. internal/home/runner/.m2/github/modsrepo/maven/
+      # We sync only the maven/ subdirectory into mod-resources/maven/.
+      - name: Sync Maven staging into mod-resources
+        env:
+          MAVEN_LOCAL_PATH: ${{ needs.prepare.outputs.maven_local_path }}
         run: |
-          chmod +x gradlew
-          ./gradlew publishLocal
+          # Strip leading slash to get the relative path inside the artifact download
+          RELATIVE_PATH="${MAVEN_LOCAL_PATH#/}"
+          STAGING_DIR="internal/${RELATIVE_PATH}"
+
+          if [ ! -d "$STAGING_DIR" ]; then
+            echo "Error: Maven staging directory not found at: $STAGING_DIR" >&2
+            echo "Contents of internal/:" >&2
+            find internal/ -maxdepth 4 | head -40 >&2
+            exit 1
+          fi
+
+          echo "Syncing from: $STAGING_DIR"
+          rsync -av "$STAGING_DIR/" /tmp/mod-resources/maven/
 
       - name: Commit and push to mod-resources
         run: |
-          MAVEN_LOCAL_PATH="${{ needs.prepare.outputs.maven_local_path }}"
-          cd "$MAVEN_LOCAL_PATH"
+          cd /tmp/mod-resources
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name  "github-actions[bot]"
           git add maven/
