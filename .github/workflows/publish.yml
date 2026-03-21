@@ -18,6 +18,7 @@ jobs:
       full_version: ${{ steps.parse.outputs.full_version }}
       maven_local_path: ${{ steps.parse.outputs.maven_local_path }}
       internal_artifact_name: ${{ steps.parse.outputs.internal_artifact_name }}
+      ci_run_id: ${{ steps.parse.outputs.ci_run_id }}
 
     steps:
       - name: Checkout release commit
@@ -26,13 +27,43 @@ jobs:
           ref: ${{ github.event.release.target_commitish }}
           fetch-depth: 0
 
-      # metadata.json comes from the internal Actions Artifact (not the release assets).
-      # The artifact name is "internal-<full_version>" as set in release.yml.
-      # We derive the name from the release tag which equals full_version.
+      # metadata.json comes from the internal Actions Artifact created by release.yml.
+      # We find the correct run by searching for the most recent release.yml run
+      # that produced an artifact named "internal-<tag>", then download it explicitly.
+      - name: Find release.yml run ID for this tag
+        id: find_run
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          ARTIFACT_NAME="internal-${TAG}"
+
+          # Search the last 20 release.yml runs for the matching artifact
+          RUN_ID=$(gh api             "repos/${{ github.repository }}/actions/workflows/release.yml/runs?per_page=20&status=success"             --jq ".workflow_runs[] |
+              select(.head_branch == "${{ github.event.release.target_commitish }}"
+                     or .head_sha == "${{ github.event.release.target_commitish }}") |
+              .id"             | head -n5             | while read -r rid; do
+                EXISTS=$(gh api                   "repos/${{ github.repository }}/actions/runs/${rid}/artifacts"                   --jq ".artifacts[] | select(.name == "${ARTIFACT_NAME}") | .id" 2>/dev/null || true)
+                if [ -n "$EXISTS" ]; then
+                  echo "$rid"
+                  break
+                fi
+              done)
+
+          if [ -z "$RUN_ID" ]; then
+            echo "Error: Could not find a release.yml run with artifact '${ARTIFACT_NAME}'" >&2
+            exit 1
+          fi
+
+          echo "Found run ID: $RUN_ID"
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+
       - name: Download internal artifact
         uses: actions/download-artifact@v4
         with:
           name: internal-${{ github.event.release.tag_name }}
+          run-id: ${{ steps.find_run.outputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           path: internal/
 
       - name: Parse metadata and build loader matrix
@@ -63,6 +94,8 @@ jobs:
           TITLE=${TITLE//\{RELEASE_CHANNEL\}/$RELEASE_CHANNEL}
           TITLE=${TITLE//\{PLATFORMS\}/$PLATFORM_STRING}
 
+          CI_RUN_ID=$(jq -r '.ci_run_id' "$META")
+
           {
             echo "mod_id=$MOD_ID"
             echo "mod_name=$MOD_NAME"
@@ -71,6 +104,7 @@ jobs:
             echo "full_version=$FULL_VERSION"
             echo "release_channel=$RELEASE_CHANNEL"
             echo "maven_local_path=$MAVEN_LOCAL_PATH"
+            echo "ci_run_id=$CI_RUN_ID"
             echo "release_title=$TITLE"
             echo "internal_artifact_name=internal-${FULL_VERSION}"
           } >> "$GITHUB_OUTPUT"
@@ -187,10 +221,13 @@ jobs:
     steps:
       # Download the internal artifact that was created during release.yml.
       # It contains the complete Maven staging directory + metadata.json.
+      # run-id points to the original release.yml run – required for cross-run download.
       - name: Download internal artifact
         uses: actions/download-artifact@v4
         with:
           name: ${{ needs.prepare.outputs.internal_artifact_name }}
+          run-id: ${{ needs.prepare.outputs.ci_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           path: internal/
 
       - name: Setup SSH deploy key
