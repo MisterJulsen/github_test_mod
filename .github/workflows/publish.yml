@@ -1,189 +1,194 @@
-name: Publish to Mod Platforms
+# .github/workflows/publish.yml
+#
+# Triggert AUSSCHLIESSLICH wenn du einen Draft-Release auf GitHub
+# auf "Publish release" klickst. Kein manueller Trigger nötig.
+#
+# Secrets die du setzen musst (Settings → Secrets → Actions):
+#   - CURSEFORGE_API_KEY   : CurseForge API Token
+#   - MODRINTH_API_KEY     : Modrinth API Token (aus modrinth.com/settings/pats)
+#   - MAVEN_DEPLOY_KEY     : SSH Private Key mit Write-Zugriff auf dein maven-Pages-Repo
+#
+# Variables (Settings → Variables → Actions):
+#   - CURSEFORGE_PROJECT_ID : Numerische ID deines CurseForge-Projekts
+#   - MODRINTH_PROJECT_ID   : Slug oder ID deines Modrinth-Projekts
+#   - MAVEN_REPO            : GitHub-Repo für dein Maven (z.B. "deinuser/maven")
+
+name: Publish Release
 
 on:
   release:
-    types: [published]
+    types: [published]   # Feuert wenn du "Publish release" klickst
 
 jobs:
-  prepare:
-    if: ${{ !contains(github.event.release.body, '[skip-mod-publish]') }}
-    runs-on: ubuntu-latest
-
-    outputs:
-      loaders: ${{ steps.collect.outputs.loaders }}
-      release_title: ${{ steps.collect.outputs.release_title }}
-
-    steps:
-      - name: Checkout correct branch
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.release.target_commitish }}
-          fetch-depth: 0
-
-      - name: Download release assets
-        uses: robinraju/release-downloader@v1
-        with:
-          tag: ${{ github.event.release.tag_name }}
-          fileName: "*"
-          out-file-path: artifacts
-
-      - name: Parse metadata.json
-        id: collect
-        run: |
-          META="artifacts/metadata.json"
-
-          MOD_ID=$(jq -r '.mod_id' "$META")
-          MOD_NAME=$(jq -r '.display_name' "$META")
-          MC_VERSION=$(jq -r '.minecraft_version' "$META")
-          MOD_VERSION=$(jq -r '.mod_version' "$META")
-          FULL_VERSION=$(jq -r '.full_version' "$META")
-          RELEASE_CHANNEL=$(jq -r '.release_channel' "$META")
-
-          PLATFORM_STRING=$(jq -r '
-            if has("artifacts") and (.artifacts | length > 0) then
-              "[" + (.artifacts | keys | map(ascii_upcase) | join("/")) + "]"
-            else
-              "[]"
-            end
-          ' "$META")
-
-          TITLE_FORMAT=$(jq -r '.mod_release_title_format' .mod-build-config.json)
-
-          RELEASE_TITLE=$TITLE_FORMAT
-          RELEASE_TITLE=${RELEASE_TITLE//\{MOD_ID\}/$MOD_ID}
-          RELEASE_TITLE=${RELEASE_TITLE//\{MOD_NAME\}/$MOD_NAME}
-          RELEASE_TITLE=${RELEASE_TITLE//\{MOD_VERSION\}/$MOD_VERSION}
-          RELEASE_TITLE=${RELEASE_TITLE//\{FULL_VERSION\}/$FULL_VERSION}
-          RELEASE_TITLE=${RELEASE_TITLE//\{MC_VERSION\}/$MC_VERSION}
-          RELEASE_TITLE=${RELEASE_TITLE//\{RELEASE_CHANNEL\}/$RELEASE_CHANNEL}
-          RELEASE_TITLE=${RELEASE_TITLE//\{PLATFORMS\}/$PLATFORM_STRING}
-
-          echo "MOD_ID=$MOD_ID"               >> $GITHUB_ENV
-          echo "MOD_NAME=$MOD_NAME"           >> $GITHUB_ENV
-          echo "MC_VERSION=$MC_VERSION"       >> $GITHUB_ENV
-          echo "MOD_VERSION=$MOD_VERSION"     >> $GITHUB_ENV
-          echo "FULL_VERSION=$FULL_VERSION"   >> $GITHUB_ENV
-          echo "RELEASE_CHANNEL=$RELEASE_CHANNEL" >> $GITHUB_ENV
-          echo "PLATFORMS=$PLATFORM_STRING"   >> $GITHUB_ENV
-          echo "RELEASE_TITLE=$RELEASE_TITLE" >> $GITHUB_ENV
-
-          echo "release_title=$RELEASE_TITLE" >> $GITHUB_OUTPUT
-
-          # Build loader list
-          LOADERS=$(jq -r '.artifacts[].platform' "$META" | sort -u)
-          LOADERS_JSON=$(printf '%s\n' $LOADERS | jq -R . | jq -s -c .)
-          echo "loaders=$LOADERS_JSON" >> $GITHUB_OUTPUT
-
-          # Create a file list per loader
-          for L in $LOADERS; do
-            jq -r --arg L "$L" '.artifacts[] | select(.platform==$L) | .filename' "$META" \
-              | sed 's|$|.jar|' \
-              | sed 's|^|artifacts/|' > "files_${L}.txt"
-
-            for f in artifacts/*${L}*sources.jar; do
-              [ -f "$f" ] && echo "$f" >> "files_${L}.txt"
-            done
-            for f in artifacts/*${L}*javadoc.jar; do
-              [ -f "$f" ] && echo "$f" >> "files_${L}.txt"
-            done
-          done
-
-      - name: Upload loader data
-        uses: actions/upload-artifact@v4
-        with:
-          name: loader-data
-          path: files_*.txt
-
-      - name: Print release summary
-        run: |
-          echo "======================================="
-          echo "           RELEASE SUMMARY"
-          echo "======================================="
-          echo ""
-          echo "Minecraft:        $MC_VERSION"
-          echo "Mod Version:      $MOD_VERSION"
-          echo "Full Version:     $FULL_VERSION"
-          echo "Release Channel:  $RELEASE_CHANNEL"
-          echo "Title:            $RELEASE_TITLE"
-          echo ""
-          echo "Loaders:"
-          jq -r '.artifacts[].platform' artifacts/metadata.json | sort -u
-          echo ""
-          echo "Artifacts:"
-          for f in files_*.txt; do
-            echo "== ${f#files_}"
-            cat "$f"
-          done
-          echo "======================================="
-
   publish:
-    needs: prepare
+    name: Publish to CurseForge, Modrinth & Maven
     runs-on: ubuntu-latest
-
-    env:
-      RELEASE_TITLE: ${{ needs.prepare.outputs.release_title }}
-
-    strategy:
-      matrix:
-        loader: ${{ fromJson(needs.prepare.outputs.loaders) }}
+    permissions:
+      contents: read
 
     steps:
-      - name: Checkout correct branch
+      # ── Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.release.target_commitish }}
           fetch-depth: 0
 
-      - name: Download release assets
-        uses: robinraju/release-downloader@v1
+      # ── Java ──────────────────────────────────────────────────────────────
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
         with:
-          tag: ${{ github.event.release.tag_name }}
-          fileName: "*"
-          out-file-path: artifacts
+          java-version: "21"
+          distribution: "temurin"
 
-      - name: Download loader data
-        uses: actions/download-artifact@v4
+      # ── Gradle Cache ──────────────────────────────────────────────────────
+      - name: Cache Gradle
+        uses: actions/cache@v4
         with:
-          name: loader-data
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ runner.os }}-
 
+      # ── Metadaten aus gradle.properties ───────────────────────────────────
       - name: Read metadata
+        id: meta
         run: |
-          META="artifacts/metadata.json"
-          echo "MOD_VERSION=$(jq -r '.mod_version' "$META")"         >> $GITHUB_ENV
-          echo "RELEASE_CHANNEL=$(jq -r '.release_channel' "$META")" >> $GITHUB_ENV
-          echo "MC_VERSION=$(jq -r '.minecraft_version' "$META")"    >> $GITHUB_ENV
+          VERSION=$(grep -m1 "^mod_version"       gradle.properties | cut -d'=' -f2 | tr -d ' ')
+          MOD_NAME=$(grep -m1 "^mod_name"          gradle.properties | cut -d'=' -f2 | tr -d ' ')
+          MC_VERSION=$(grep -m1 "^minecraft_version" gradle.properties | cut -d'=' -f2 | tr -d ' ')
+          GROUP=$(grep -m1 "^maven_group"          gradle.properties | cut -d'=' -f2 | tr -d ' ')
+          ARTIFACT=$(grep -m1 "^archives_base_name" gradle.properties | cut -d'=' -f2 | tr -d ' ')
+          echo "version=$VERSION"       >> "$GITHUB_OUTPUT"
+          echo "mod_name=$MOD_NAME"     >> "$GITHUB_OUTPUT"
+          echo "mc_version=$MC_VERSION" >> "$GITHUB_OUTPUT"
+          echo "group=$GROUP"           >> "$GITHUB_OUTPUT"
+          echo "artifact=$ARTIFACT"     >> "$GITHUB_OUTPUT"
 
-      - name: Load files for loader
+      # ── Changelog aus Release-Body holen ──────────────────────────────────
+      # Der Release-Body enthält deinen (ggf. bearbeiteten) Changelog.
+      - name: Extract changelog from release
+        id: changelog
         run: |
-          LOADER="${{ matrix.loader }}"
-          echo "LOADER=$LOADER" >> $GITHUB_ENV
-          FILELIST=$(cat "files_${LOADER}.txt")
-          echo "files<<EOF" >> $GITHUB_ENV
-          echo "$FILELIST" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+          # Schreibe den Release-Body in eine Datei für Upload-Actions
+          echo "${{ github.event.release.body }}" > CHANGELOG_RELEASE.md
+          echo "Changelog:"
+          cat CHANGELOG_RELEASE.md
 
-      - name: Create release title
+      # ── Neu bauen (auf dem getaggten Commit) ──────────────────────────────
+      # Wichtig: Wir bauen neu auf dem exakten Release-Commit, nicht auf
+      # den Artifacts vom Build-Job (die könnten veraltet sein wenn du den
+      # Changelog editiert hast und Zeit vergangen ist).
+      - name: Build all loaders
+        run: ./gradlew build --no-daemon
+
+      # ── JARs sammeln ──────────────────────────────────────────────────────
+      - name: Collect JARs
         run: |
-          MOD_RELEASE_TITLE=$RELEASE_TITLE
-          MOD_RELEASE_TITLE=${MOD_RELEASE_TITLE//\{LOADER\}/$LOADER}
-          echo "MOD_RELEASE_TITLE=$MOD_RELEASE_TITLE" >> $GITHUB_ENV
-          echo "Generated Release Title: $MOD_RELEASE_TITLE"
-          echo "Loader: $LOADER"
+          mkdir -p release-jars
+          find . -path "*/build/libs/*.jar" \
+            ! -name "*-dev.jar" \
+            ! -name "*-sources.jar" \
+            ! -name "*-all.jar" \
+            ! -name "*-dev-shadow.jar" \
+            -exec cp {} release-jars/ \;
+          echo "=== Publishing JARs ==="
+          ls -la release-jars/
 
-      - name: Publish ${{ matrix.loader }}
+      # ── CurseForge Upload ─────────────────────────────────────────────────
+      # Docs: https://github.com/marketplace/actions/curseforge-upload
+      # Passe "game_versions" und "loaders" an deine tatsächlichen Werte an.
+      - name: Upload to CurseForge (Fabric)
+        uses: itsmeow/curseforge-upload@v3
+        with:
+          token: ${{ secrets.CURSEFORGE_API_KEY }}
+          project_id: ${{ vars.CURSEFORGE_PROJECT_ID }}
+          game_endpoint: minecraft
+          upload_file: release-jars/*-fabric.jar
+          display_name: "${{ steps.meta.outputs.mod_name }} v${{ steps.meta.outputs.version }} [Fabric] [MC ${{ steps.meta.outputs.mc_version }}]"
+          changelog: ${{ github.event.release.body }}
+          changelog_type: markdown
+          game_versions: "${{ steps.meta.outputs.mc_version }}"
+          release_type: release
+          loaders: fabric
+
+      - name: Upload to CurseForge (Forge)
+        uses: itsmeow/curseforge-upload@v3
+        with:
+          token: ${{ secrets.CURSEFORGE_API_KEY }}
+          project_id: ${{ vars.CURSEFORGE_PROJECT_ID }}
+          game_endpoint: minecraft
+          upload_file: release-jars/*-forge.jar
+          display_name: "${{ steps.meta.outputs.mod_name }} v${{ steps.meta.outputs.version }} [Forge] [MC ${{ steps.meta.outputs.mc_version }}]"
+          changelog: ${{ github.event.release.body }}
+          changelog_type: markdown
+          game_versions: "${{ steps.meta.outputs.mc_version }}"
+          release_type: release
+          loaders: forge
+
+      - name: Upload to CurseForge (NeoForge)
+        uses: itsmeow/curseforge-upload@v3
+        with:
+          token: ${{ secrets.CURSEFORGE_API_KEY }}
+          project_id: ${{ vars.CURSEFORGE_PROJECT_ID }}
+          game_endpoint: minecraft
+          upload_file: release-jars/*-neoforge.jar
+          display_name: "${{ steps.meta.outputs.mod_name }} v${{ steps.meta.outputs.version }} [NeoForge] [MC ${{ steps.meta.outputs.mc_version }}]"
+          changelog: ${{ github.event.release.body }}
+          changelog_type: markdown
+          game_versions: "${{ steps.meta.outputs.mc_version }}"
+          release_type: release
+          loaders: neoforge
+
+      # ── Modrinth Upload ───────────────────────────────────────────────────
+      # Docs: https://github.com/marketplace/actions/modrinth-publish
+      - name: Upload to Modrinth (Fabric)
         uses: Kir-Antipov/mc-publish@v3.3
         with:
-          name: ${{ env.MOD_RELEASE_TITLE }}
-          version: ${{ env.MOD_VERSION }}
-          version-type: ${{ env.RELEASE_CHANNEL }}
-          game-versions: ${{ env.MC_VERSION }}
-          loaders: ${{ matrix.loader }}
-
+          modrinth-id: ${{ vars.MODRINTH_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_API_KEY }}
+          files: release-jars/*-fabric.jar
+          name: "${{ steps.meta.outputs.mod_name }} v${{ steps.meta.outputs.version }} [Fabric]"
+          version: ${{ steps.meta.outputs.version }}-fabric
+          version-type: release
           changelog: ${{ github.event.release.body }}
-          files: ${{ env.files }}
+          loaders: fabric
+          game-versions: ${{ steps.meta.outputs.mc_version }}
 
-          modrinth-id: ${{ secrets.MODRINTH_ID }}
-          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+      - name: Upload to Modrinth (Forge)
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-id: ${{ vars.MODRINTH_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_API_KEY }}
+          files: release-jars/*-forge.jar
+          name: "${{ steps.meta.outputs.mod_name }} v${{ steps.meta.outputs.version }} [Forge]"
+          version: ${{ steps.meta.outputs.version }}-forge
+          version-type: release
+          changelog: ${{ github.event.release.body }}
+          loaders: forge
+          game-versions: ${{ steps.meta.outputs.mc_version }}
 
-          curseforge-id: ${{ secrets.CF_ID }}
-          curseforge-token: ${{ secrets.CF_TOKEN }}
+      - name: Upload to Modrinth (NeoForge)
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-id: ${{ vars.MODRINTH_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_API_KEY }}
+          files: release-jars/*-neoforge.jar
+          name: "${{ steps.meta.outputs.mod_name }} v${{ steps.meta.outputs.version }} [NeoForge]"
+          version: ${{ steps.meta.outputs.version }}-neoforge
+          version-type: release
+          changelog: ${{ github.event.release.body }}
+          loaders: neoforge
+          game-versions: ${{ steps.meta.outputs.mc_version }}
+
+      # ── Maven auf GitHub Pages publishen ──────────────────────────────────
+      # Baut das Maven-Layout und pushed es in dein separates maven-Repo.
+      - name: Publish to Maven (GitHub Pages)
+        env:
+          MAVEN_DEPLOY_KEY: ${{ secrets.MAVEN_DEPLOY_KEY }}
+          MAVEN_REPO: ${{ vars.MAVEN_REPO }}   # z.B. "deinuser/maven"
+          GROUP: ${{ steps.meta.outputs.group }}
+          ARTIFACT: ${{ steps.meta.outputs.artifact }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          MC_VERSION: ${{ steps.meta.outputs.mc_version }}
+        run: bash scripts/publish-maven.sh

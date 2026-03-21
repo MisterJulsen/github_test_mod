@@ -30,6 +30,9 @@ subprojects {
 
     repositories {
         mavenCentral()
+        maven {
+            url = uri("https://maven.pkg.github.com/copycats-plus/copycats")
+        }
     }
 
     dependencies {
