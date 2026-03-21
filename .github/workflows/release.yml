@@ -4,12 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       publish_platforms:
-        description: "Publish to CurseForge & Modrinth after approval"
+        description: "Publish to CurseForge & Modrinth"
         required: false
         type: boolean
         default: true
       publish_maven:
-        description: "Publish to Maven after approval"
+        description: "Publish to Maven"
         required: false
         type: boolean
         default: true

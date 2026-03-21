@@ -193,9 +193,9 @@ jobs:
           loaders: ${{ matrix.loader }}
           changelog: ${{ github.event.release.body }}
           files: ${{ steps.files.outputs.list }}
-          modrinth-id: ${{ secrets.MODRINTH_ID }}
+          modrinth-id: ${{ vars.MODRINTH_ID }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
-          curseforge-id: ${{ secrets.CF_ID }}
+          curseforge-id: ${{ vars.CF_ID }}
           curseforge-token: ${{ secrets.CF_TOKEN }}
 
   # Maven – publishes the staged Maven repo to the configured target.
