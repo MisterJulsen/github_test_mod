@@ -224,17 +224,13 @@ jobs:
       - name: Clone mod-resources
         run: git clone git@github.com:MisterJulsen/mod-resources.git /tmp/mod-resources
 
-      # The internal artifact contains the Maven staging directory.
-      # Its path inside the artifact mirrors the absolute localRepoDir path,
-      # e.g. internal/home/runner/.m2/github/modsrepo/maven/
-      # We sync only the maven/ subdirectory into mod-resources/maven/.
+      # The internal artifact has a predictable flat layout (set by release.yml):
+      #   internal/metadata.json
+      #   internal/maven/<group>/<artifact>/...
+      # We sync internal/maven/ directly into mod-resources/maven/.
       - name: Sync Maven staging into mod-resources
-        env:
-          MAVEN_LOCAL_PATH: ${{ needs.prepare.outputs.maven_local_path }}
         run: |
-          # Strip leading slash to get the relative path inside the artifact download
-          RELATIVE_PATH="${MAVEN_LOCAL_PATH#/}"
-          STAGING_DIR="internal/${RELATIVE_PATH}"
+          STAGING_DIR="internal/maven"
 
           if [ ! -d "$STAGING_DIR" ]; then
             echo "Error: Maven staging directory not found at: $STAGING_DIR" >&2

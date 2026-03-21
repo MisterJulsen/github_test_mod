@@ -146,13 +146,26 @@ jobs:
       # ── Internal Actions Artifact ──────────────────────────────────────────
       # Stores the Maven staging directory and metadata.json for publish.yml.
       # Not visible in the GitHub Release – only accessible in the Actions run.
+      #
+      # metadata.json is copied into a staging dir first so it lands at a
+      # predictable flat path in the artifact (internal/metadata.json),
+      # not mirroring the absolute runner path.
+      # The Maven staging dir is uploaded separately under the key "maven/".
+      - name: Prepare internal artifact staging
+        run: |
+          mkdir -p internal-staging/maven
+          cp metadata.json internal-staging/metadata.json
+          # Sync Maven local repo into internal-staging/maven/
+          # Strip the absolute path prefix so the artifact layout is always:
+          #   internal/metadata.json
+          #   internal/maven/<group>/<artifact>/...
+          rsync -a "${{ steps.meta.outputs.maven_local_path }}/" internal-staging/maven/
+
       - name: Upload internal build artifact
         uses: actions/upload-artifact@v4
         with:
           name: internal-${{ steps.meta.outputs.full_version }}
-          path: |
-            ${{ steps.meta.outputs.maven_local_path }}
-            metadata.json
+          path: internal-staging/
           retention-days: 30
 
       # ── GitHub Draft Release ───────────────────────────────────────────────
