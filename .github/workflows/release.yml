@@ -126,12 +126,8 @@ jobs:
         env:
           SCRIPT_COMMIT: ${{ vars.CHANGELOG_SCRIPT_COMMIT }}
         run: |
-          if [ -z "$SCRIPT_COMMIT" ]; then
-            echo "Error: CHANGELOG_SCRIPT_COMMIT variable is not set." >&2
-            exit 1
-          fi
           curl -fsSL \
-            "https://raw.githubusercontent.com/MisterJulsen/mod-resources/main/data/generate_changelog.sh" \
+            "https://raw.githubusercontent.com/MisterJulsen/mod-resources/main/data/build-tools/generate_changelog.sh" \
             -o generate_changelog.sh
           chmod +x generate_changelog.sh
 
