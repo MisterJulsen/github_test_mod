@@ -6,7 +6,7 @@ on:
 
 jobs:
   prepare:
-    if: ${{ !contains(github.event.release.body, '[skip-mod-publish]') }}
+    if: ${{ !contains(github.event.release.body, '[skip-platforms]') || !contains(github.event.release.body, '[skip-maven]') }}
     runs-on: ubuntu-latest
 
     outputs:
@@ -135,6 +135,7 @@ jobs:
   # CurseForge & Modrinth – platform JARs from Release Assets, parallel per loader
   publish-platforms:
     needs: prepare
+    if: ${{ !contains(github.event.release.body, '[skip-platforms]') }}
     runs-on: ubuntu-latest
 
     strategy:
@@ -202,6 +203,7 @@ jobs:
   # maven-metadata.xml) during the release.yml build. We just push it.
   publish-maven:
     needs: prepare
+    if: ${{ !contains(github.event.release.body, '[skip-maven]') }}
     runs-on: ubuntu-latest
 
     steps:

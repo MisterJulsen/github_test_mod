@@ -3,8 +3,13 @@ name: Create Release
 on:
   workflow_dispatch:
     inputs:
-      trigger_mod_publish:
-        description: "Publish to CurseForge/Modrinth after approval"
+      publish_platforms:
+        description: "Publish to CurseForge & Modrinth after approval"
+        required: false
+        type: boolean
+        default: true
+      publish_maven:
+        description: "Publish to Maven (mod-resources) after approval"
         required: false
         type: boolean
         default: true
@@ -180,7 +185,8 @@ jobs:
           draft: true
           prerelease: ${{ steps.meta.outputs.release_channel != 'release' }}
           body: |
-            ${{ inputs.trigger_mod_publish == false && '[skip-mod-publish]' || '' }}
+            ${{ inputs.publish_platforms == false && '[skip-platforms]' || '' }}
+            ${{ inputs.publish_maven == false && '[skip-maven]' || '' }}
             ${{ steps.changelog.outputs.content }}
             <!--run-id:${{ github.run_id }}-->
           files: ${{ steps.platform.outputs.files }}
