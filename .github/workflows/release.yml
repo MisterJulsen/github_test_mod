@@ -9,7 +9,7 @@ on:
         type: boolean
         default: true
       publish_maven:
-        description: "Publish to Maven (mod-resources) after approval"
+        description: "Publish to Maven after approval"
         required: false
         type: boolean
         default: true

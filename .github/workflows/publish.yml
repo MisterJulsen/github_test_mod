@@ -198,18 +198,40 @@ jobs:
           curseforge-id: ${{ secrets.CF_ID }}
           curseforge-token: ${{ secrets.CF_TOKEN }}
 
-  # Maven – slim JARs from the internal Actions Artifact → mod-resources → push
-  # Gradle already wrote a complete Maven repo layout (POMs, all checksums,
-  # maven-metadata.xml) during the release.yml build. We just push it.
+  # Maven – publishes the staged Maven repo to the configured target.
+  #
+  # The MAVEN_TARGET variable (Settings → Variables → Actions) selects the
+  # publish strategy. Only the secrets for the chosen target need to be set.
+  #
+  # Supported targets:
+  #   github-pages  → commit to a GitHub repo served via GitHub Pages
+  #                   Secret:   MOD_RESOURCES_DEPLOY_KEY
+  #                   Variable: MAVEN_GITHUB_REPO  (e.g. "MisterJulsen/mod-resources")
+  #                   Variable: MAVEN_GITHUB_PATH  (subfolder in repo, e.g. "maven")
+  #
+  #   http          → HTTP PUT to Nexus, Artifactory, Gitea, nginx+WebDAV, etc.
+  #                   Secret: MAVEN_HTTP_URL       (e.g. "https://nexus.example.com/repository/releases")
+  #                   Secret: MAVEN_HTTP_USERNAME
+  #                   Secret: MAVEN_HTTP_PASSWORD
+  #
+  #   s3            → S3-compatible storage (AWS, Backblaze B2, MinIO, Cloudflare R2)
+  #                   Secret: MAVEN_S3_ENDPOINT    (e.g. "https://s3.us-east-1.amazonaws.com")
+  #                   Secret: MAVEN_S3_BUCKET
+  #                   Secret: MAVEN_S3_ACCESS_KEY
+  #                   Secret: MAVEN_S3_SECRET_KEY
+  #                   Secret: MAVEN_S3_PATH_PREFIX (optional, prefix inside bucket)
+  #
+  #   ssh           → rsync over SSH to a self-hosted server
+  #                   Secret: MAVEN_SSH_KEY        (private key)
+  #                   Secret: MAVEN_SSH_HOST       (e.g. "maven.example.com")
+  #                   Secret: MAVEN_SSH_USER       (e.g. "deploy")
+  #                   Secret: MAVEN_SSH_PATH       (remote path, e.g. "/var/www/maven")
   publish-maven:
     needs: prepare
     if: ${{ !contains(github.event.release.body, '[skip-maven]') }}
     runs-on: ubuntu-latest
 
     steps:
-      # Download the internal artifact that was created during release.yml.
-      # It contains the complete Maven staging directory + metadata.json.
-      # run-id points to the original release.yml run – required for cross-run download.
       - name: Download internal artifact
         uses: actions/download-artifact@v4
         with:
@@ -218,44 +240,121 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: internal/
 
-      - name: Setup SSH deploy key
+      - name: Verify Maven staging directory
         run: |
+          if [ ! -d "internal/maven" ]; then
+            echo "Error: internal/maven not found" >&2
+            find internal/ -maxdepth 4 | head -40 >&2
+            exit 1
+          fi
+          echo "Maven staging contents:"
+          find internal/maven -maxdepth 4
+
+      # ── GitHub Pages ──────────────────────────────────────────────────────
+      - name: "[github-pages] Setup SSH deploy key"
+        if: ${{ vars.MAVEN_TARGET == 'github-pages' }}
+        run: |
+          [ -n "${{ secrets.MOD_RESOURCES_DEPLOY_KEY }}" ] || {
+            echo "Error: MOD_RESOURCES_DEPLOY_KEY secret is not set" >&2; exit 1
+          }
+          [ -n "${{ vars.MAVEN_GITHUB_REPO }}" ] || {
+            echo "Error: MAVEN_GITHUB_REPO variable is not set (e.g. 'MisterJulsen/mod-resources')" >&2; exit 1
+          }
           mkdir -p ~/.ssh
           echo "${{ secrets.MOD_RESOURCES_DEPLOY_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan github.com >> ~/.ssh/known_hosts
           echo "GIT_SSH_COMMAND=ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" >> "$GITHUB_ENV"
 
-      - name: Clone mod-resources
-        run: git clone git@github.com:MisterJulsen/mod-resources.git /tmp/mod-resources
+      - name: "[github-pages] Clone target repo"
+        if: ${{ vars.MAVEN_TARGET == 'github-pages' }}
+        run: git clone "git@github.com:${{ vars.MAVEN_GITHUB_REPO }}.git" /tmp/maven-target
 
-      # The internal artifact has a predictable flat layout (set by release.yml):
-      #   internal/metadata.json
-      #   internal/maven/<group>/<artifact>/...
-      # We sync internal/maven/ directly into mod-resources/maven/.
-      - name: Sync Maven staging into mod-resources
+      - name: "[github-pages] Sync and push"
+        if: ${{ vars.MAVEN_TARGET == 'github-pages' }}
         run: |
-          STAGING_DIR="internal/maven"
-
-          if [ ! -d "$STAGING_DIR" ]; then
-            echo "Error: Maven staging directory not found at: $STAGING_DIR" >&2
-            echo "Contents of internal/:" >&2
-            find internal/ -maxdepth 4 | head -40 >&2
-            exit 1
-          fi
-
-          echo "Syncing from: $STAGING_DIR"
-          rsync -av "$STAGING_DIR/" /tmp/mod-resources/maven/
-
-      - name: Commit and push to mod-resources
-        run: |
-          cd /tmp/mod-resources
+          SUBFOLDER="${{ vars.MAVEN_GITHUB_PATH }}"
+          SUBFOLDER="${SUBFOLDER:-maven}"
+          TARGET_DIR="/tmp/maven-target/${SUBFOLDER}"
+          mkdir -p "$TARGET_DIR"
+          rsync -av "internal/maven/" "$TARGET_DIR/"
+          cd /tmp/maven-target
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name  "github-actions[bot]"
-          git add maven/
+          git add "${SUBFOLDER}/"
           if git diff --cached --quiet; then
             echo "Nothing to commit – version already published"
           else
             git commit -m "maven: ${{ needs.prepare.outputs.full_version }}"
             git push origin HEAD
           fi
+
+      # ── HTTP / WebDAV ─────────────────────────────────────────────────────
+      - name: "[http] Upload via HTTP PUT"
+        if: ${{ vars.MAVEN_TARGET == 'http' }}
+        env:
+          BASE_URL: ${{ secrets.MAVEN_HTTP_URL }}
+          USERNAME: ${{ secrets.MAVEN_HTTP_USERNAME }}
+          PASSWORD: ${{ secrets.MAVEN_HTTP_PASSWORD }}
+        run: |
+          [ -n "$BASE_URL" ] || { echo "Error: MAVEN_HTTP_URL secret is not set" >&2; exit 1; }
+          [ -n "$USERNAME" ] || { echo "Error: MAVEN_HTTP_USERNAME secret is not set" >&2; exit 1; }
+          [ -n "$PASSWORD" ] || { echo "Error: MAVEN_HTTP_PASSWORD secret is not set" >&2; exit 1; }
+          BASE_URL="${BASE_URL%/}"
+          ERRORS=0
+          find internal/maven -type f | while read -r file; do
+            RELATIVE="${file#internal/maven/}"
+            TARGET_URL="${BASE_URL}/${RELATIVE}"
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}"               -u "${USERNAME}:${PASSWORD}"               -X PUT               -H "Content-Type: application/octet-stream"               --data-binary "@${file}"               "$TARGET_URL")
+            if [[ "$HTTP_CODE" =~ ^2 ]]; then
+              echo "✓ ${RELATIVE} (HTTP ${HTTP_CODE})"
+            else
+              echo "✗ ${RELATIVE} (HTTP ${HTTP_CODE})" >&2
+              ERRORS=$((ERRORS + 1))
+            fi
+          done
+          [ "$ERRORS" -eq 0 ] || { echo "Error: ${ERRORS} file(s) failed to upload" >&2; exit 1; }
+
+      # ── S3-compatible ─────────────────────────────────────────────────────
+      - name: "[s3] Upload to S3-compatible storage"
+        if: ${{ vars.MAVEN_TARGET == 's3' }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.MAVEN_S3_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.MAVEN_S3_SECRET_KEY }}
+          S3_ENDPOINT: ${{ secrets.MAVEN_S3_ENDPOINT }}
+          S3_BUCKET: ${{ secrets.MAVEN_S3_BUCKET }}
+          S3_PATH_PREFIX: ${{ secrets.MAVEN_S3_PATH_PREFIX }}
+        run: |
+          [ -n "$AWS_ACCESS_KEY_ID" ]     || { echo "Error: MAVEN_S3_ACCESS_KEY secret is not set" >&2; exit 1; }
+          [ -n "$AWS_SECRET_ACCESS_KEY" ] || { echo "Error: MAVEN_S3_SECRET_KEY secret is not set" >&2; exit 1; }
+          [ -n "$S3_ENDPOINT" ]           || { echo "Error: MAVEN_S3_ENDPOINT secret is not set" >&2; exit 1; }
+          [ -n "$S3_BUCKET" ]             || { echo "Error: MAVEN_S3_BUCKET secret is not set" >&2; exit 1; }
+          PREFIX="${S3_PATH_PREFIX:+${S3_PATH_PREFIX}/}"
+          aws s3 sync "internal/maven/" "s3://${S3_BUCKET}/${PREFIX}"             --endpoint-url "$S3_ENDPOINT"             --no-progress
+
+      # ── SSH / rsync ───────────────────────────────────────────────────────
+      - name: "[ssh] Setup SSH key"
+        if: ${{ vars.MAVEN_TARGET == 'ssh' }}
+        run: |
+          [ -n "${{ secrets.MAVEN_SSH_KEY }}" ]  || { echo "Error: MAVEN_SSH_KEY secret is not set" >&2; exit 1; }
+          [ -n "${{ secrets.MAVEN_SSH_HOST }}" ] || { echo "Error: MAVEN_SSH_HOST secret is not set" >&2; exit 1; }
+          [ -n "${{ secrets.MAVEN_SSH_USER }}" ] || { echo "Error: MAVEN_SSH_USER secret is not set" >&2; exit 1; }
+          [ -n "${{ secrets.MAVEN_SSH_PATH }}" ] || { echo "Error: MAVEN_SSH_PATH secret is not set" >&2; exit 1; }
+          mkdir -p ~/.ssh
+          echo "${{ secrets.MAVEN_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan "${{ secrets.MAVEN_SSH_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: "[ssh] Sync via rsync"
+        if: ${{ vars.MAVEN_TARGET == 'ssh' }}
+        run: |
+          rsync -av             -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no"             "internal/maven/"             "${{ secrets.MAVEN_SSH_USER }}@${{ secrets.MAVEN_SSH_HOST }}:${{ secrets.MAVEN_SSH_PATH }}/"
+
+      # ── Unknown / missing target ──────────────────────────────────────────
+      - name: Validate maven target
+        if: ${{ vars.MAVEN_TARGET == '' || (vars.MAVEN_TARGET != 'github-pages' && vars.MAVEN_TARGET != 'http' && vars.MAVEN_TARGET != 's3' && vars.MAVEN_TARGET != 'ssh') }}
+        run: |
+          echo "Error: MAVEN_TARGET variable is not set or has an invalid value." >&2
+          echo "Go to Settings → Variables → Actions and set MAVEN_TARGET to one of:" >&2
+          echo "  github-pages, http, s3, ssh" >&2
+          exit 1
