@@ -28,34 +28,17 @@ jobs:
           fetch-depth: 0
 
       # metadata.json comes from the internal Actions Artifact created by release.yml.
-      # We find the correct run by searching for the most recent release.yml run
-      # that produced an artifact named "internal-<tag>", then download it explicitly.
-      - name: Find release.yml run ID for this tag
+      # The release body contains the run-id encoded as an HTML comment so we
+      # can download across workflow runs without any API searching.
+      - name: Extract run ID from release body
         id: find_run
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="${{ github.event.release.tag_name }}"
-          ARTIFACT_NAME="internal-${TAG}"
-
-          # Search the last 20 release.yml runs for the matching artifact
-          RUN_ID=$(gh api             "repos/${{ github.repository }}/actions/workflows/release.yml/runs?per_page=20&status=success"             --jq ".workflow_runs[] |
-              select(.head_branch == "${{ github.event.release.target_commitish }}"
-                     or .head_sha == "${{ github.event.release.target_commitish }}") |
-              .id"             | head -n5             | while read -r rid; do
-                EXISTS=$(gh api                   "repos/${{ github.repository }}/actions/runs/${rid}/artifacts"                   --jq ".artifacts[] | select(.name == "${ARTIFACT_NAME}") | .id" 2>/dev/null || true)
-                if [ -n "$EXISTS" ]; then
-                  echo "$rid"
-                  break
-                fi
-              done)
-
+          RUN_ID=$(echo "${{ github.event.release.body }}" | grep -oP '(?<=<!--run-id:)\d+(?=-->)' || true)
           if [ -z "$RUN_ID" ]; then
-            echo "Error: Could not find a release.yml run with artifact '${ARTIFACT_NAME}'" >&2
+            echo "Error: Could not find run-id comment in release body" >&2
+            echo "Expected a comment like: <!--run-id:1234567890-->" >&2
             exit 1
           fi
-
-          echo "Found run ID: $RUN_ID"
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
 
       - name: Download internal artifact

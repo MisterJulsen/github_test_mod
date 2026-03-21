@@ -169,6 +169,7 @@ jobs:
           body: |
             ${{ inputs.trigger_mod_publish == false && '[skip-mod-publish]' || '' }}
             ${{ steps.changelog.outputs.content }}
+            <!--run-id:${{ github.run_id }}-->
           files: ${{ steps.platform.outputs.files }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
