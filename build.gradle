@@ -2,17 +2,21 @@ plugins {
     id 'dev.architectury.loom' version '1.13-SNAPSHOT' apply false
     id 'architectury-plugin' version '3.4-SNAPSHOT'
     id 'com.github.johnrengelman.shadow' version '8.1.1' apply false
-    id "net.mrjulsen.mod-build-tools" version "1.0.7"
+    id "net.mrjulsen.mod-build-tools" version "1.0.8"  // bump nach Plugin-Update
 }
 
 architectury {
     minecraft = project.minecraft_version
 }
 
-allprojects {
+// ENTFERNT: allprojects { version = ... }
+// Das Plugin setzt project.version auf allen (Sub-)Projekten in afterEvaluate.
+// Ein eigenes version-Assignment hier würde je nach Evaluierungs-Reihenfolge
+// das Plugin überschreiben oder umgekehrt – deshalb genau eine Stelle.
 
+allprojects {
     group = rootProject.maven_group
-    version = rootProject.mod_version
+    // version wird vom modBuildTools-Plugin gesetzt
 }
 
 subprojects {
@@ -42,7 +46,7 @@ subprojects {
 
     java {
         withSourcesJar()
-
+        withJavadocJar()
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -59,29 +63,36 @@ subprojects {
             }
         }
     }
-
-    java {
-        withSourcesJar()
-        withJavadocJar()
-    }
 }
 
-
 modBuildTools {
+    modId = project.mod_id               // aus gradle.properties
+    displayName = project.display_name   // aus gradle.properties
+
     publish {
         localRepoDir = "${System.getProperty('user.home')}/.m2/github/modsrepo/maven"
         publishCommon = false
+        mavenGroup = project.maven_group  // aus gradle.properties
     }
+
     javadoc {
-        title = "Test Mod API ${release_channel}-${mod_version}"
+        title = "${project.display_name} API ${project.release_channel}-${project.mod_version}"
         tags = [
-            "apiNote:a:API Note:",
-            "implNote:a:Impl Note:",
-            "implSpec:a:Impl Spec:",
-            "related:a:Related:",
-            "example:a:Examples:",
-            "side:a:Valid on side:"
+                "apiNote:a:API Note:",
+                "implNote:a:Impl Note:",
+                "implSpec:a:Impl Spec:",
+                "related:a:Related:",
+                "example:a:Examples:",
+                "side:a:Valid on side:"
         ]
     }
-}
 
+    // Optional: versioning-Block nur nötig wenn du vom Default abweichen willst.
+    // Das Plugin liest minecraft_version, mod_version und release_channel
+    // automatisch aus gradle.properties – du musst hier nichts setzen.
+    //
+    // versioning {
+    //     releaseVersionFormat = "{mc}-{mod}"
+    //     versionFormat        = "{mc}-{channel}-{mod}"
+    // }
+}
