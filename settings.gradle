@@ -2,7 +2,7 @@ pluginManagement {
     repositories {
         mavenLocal()
         //maven { url = "file://${System.getProperty('user.home')}/.m2/" } // Local
-        maven { url "https://MisterJulsen.github.io/mod-resources/maven" }
+        maven { url "https://maven.mrjulsen.net" }
         maven { url "https://maven.fabricmc.net/" }
         maven { url "https://maven.architectury.dev/" }
         maven { url "https://files.minecraftforge.net/maven/" }

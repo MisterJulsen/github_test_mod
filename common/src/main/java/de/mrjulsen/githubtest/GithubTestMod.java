@@ -1,13 +1,9 @@
 package de.mrjulsen.githubtest;
 
-public final class GithubTestTmod {
+public final class GithubTestMod {
     public static final String MOD_ID = "github_test_mod";
 
     public static void init() {
-        // Write common init code here.
-
-        // Hello World 3
-
         System.out.println("Hello World!");
     }
 }

@@ -15,11 +15,9 @@
     "environment": "*",
     "entrypoints": {
         "main": [
-            "de.mrjulsen.githubtest.fabric.GithubTestTmodFabric"
+            "de.mrjulsen.githubtest.fabric.GithubTestModFabric"
         ],
-        "client": [
-            "de.mrjulsen.githubtest.fabric.client.GithubTestTmodFabricClient"
-        ]
+        "client": []
     },
     "mixins": [
         "github_test_mod.mixins.json"
