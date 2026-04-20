@@ -6,7 +6,7 @@
 
 "files": [
   {
-    "source": "common/src/generated/resources/assets/create/lang/en_us.json",
+    "source": "common/src/main/resources/assets/create/lang/en_us.json",
     "translation": "common/src/main/resources/assets/create/lang/%locale_with_underscore%.json"
   }
 ]
