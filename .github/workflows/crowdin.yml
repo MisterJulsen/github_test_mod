@@ -18,7 +18,7 @@ jobs:
       - name: Crowdin Sync
         uses: crowdin/github-action@v2
         with:
-          upload_sources: ${{ github.event.inputs.upload_sources }}
+          upload_sources: "${{ github.event.inputs.upload_sources }}"
           upload_translations: false
           download_translations: true
           localization_branch_name: l10n_crowdin_translations
