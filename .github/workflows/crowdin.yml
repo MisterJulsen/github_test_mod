@@ -3,29 +3,31 @@ name: Crowdin Sync
 on:
   workflow_dispatch:
     inputs:
-      upload_sources:
-        description: "Update en_us.json"
+      uploadTranslations:
+        description: "Upload translations"
         type: boolean
         required: true
         default: false
 
 jobs:
-  crowdin:
+  synchronize-with-crowdin:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
-      - name: Crowdin Sync
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: crowdin action
         uses: crowdin/github-action@v2
         with:
           upload_sources: true
-          upload_translations: false
+          upload_translations: ${{ github.event.inputs.uploadTranslations }}
           download_translations: true
           localization_branch_name: l10n_crowdin_translations
           create_pull_request: true
-          pull_request_title: "Crowdin: New translations for ${{ github.ref_name }}"
-          pull_request_body: "Automatically generated PR with new Crowdin translations."
-          pull_request_base_branch_name: master
+          pull_request_title: 'Crowdin: New translations'
+          pull_request_body: 'New Crowdin pull request with translations'
+          pull_request_base_branch_name: '${{ github.ref_name }}'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CROWDIN_PROJECT_ID: ${{ secrets.CROWDIN_PROJECT_ID }}
