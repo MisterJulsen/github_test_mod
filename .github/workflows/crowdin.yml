@@ -25,7 +25,7 @@ jobs:
           create_pull_request: true
           pull_request_title: "Crowdin: New translations for ${{ github.ref_name }}"
           pull_request_body: "Automatically generated PR with new Crowdin translations."
-          pull_request_base_branch_name: ${{ github.ref_name }}
+          pull_request_base_branch_name: master
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CROWDIN_PROJECT_ID: ${{ secrets.CROWDIN_PROJECT_ID }}
