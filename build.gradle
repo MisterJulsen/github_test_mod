@@ -2,7 +2,7 @@ plugins {
     id 'dev.architectury.loom' version '1.13-SNAPSHOT' apply false
     id 'architectury-plugin' version '3.4-SNAPSHOT'
     id 'com.github.johnrengelman.shadow' version '8.1.1' apply false
-    id "net.mrjulsen.mod-build-tools" version "2.0.2"  // bump nach Plugin-Update
+    id "net.mrjulsen.mod-build-tools" version "2.0.3"  // bump nach Plugin-Update
 }
 
 architectury {
