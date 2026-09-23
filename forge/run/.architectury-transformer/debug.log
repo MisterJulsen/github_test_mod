@@ -105,20 +105,20 @@
 [Architectury Transformer DEBUG]  - C:\Users\julia\.gradle\caches\modules-2\files-2.1\io.netty\netty-transport-native-epoll\4.1.82.Final\c7350a71920f3ae9142945e25fed4846cce53374\netty-transport-native-epoll-4.1.82.Final-linux-x86_64.jar
 [Architectury Transformer DEBUG]  - C:\Users\julia\.gradle\caches\modules-2\files-2.1\io.netty\netty-transport-native-epoll\4.1.82.Final\476409d6255001ca53a55f65b01c13822f8dc93a\netty-transport-native-epoll-4.1.82.Final-linux-aarch_64.jar
 [Architectury Transformer DEBUG]  - E:\Minecraft Modding\Modding\Test\GitHub Test Mod\.gradle\loom-cache\remapped_mods\remapped\dev\architectury\architectury-forge-471fa952\9.2.14\architectury-forge-471fa952-9.2.14.jar
-[Architectury Transformer] Read classpath in 1.182 s
+[Architectury Transformer] Read classpath in 1.130 s
 [Architectury Transformer DEBUG] Closed File Systems for E:\Minecraft Modding\Modding\Test\GitHub Test Mod\common\build\devlibs\GitHubTestMod-common-1.2.3-dev.jar
-[Architectury Transformer DEBUG] Transforming 8 transformer(s) from E:\Minecraft Modding\Modding\Test\GitHub Test Mod\common\build\devlibs\GitHubTestMod-common-1.2.3-dev.jar to C:\Users\julia\AppData\Local\Temp\8490235387029447056.jar: 
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.RuntimeMixinRefmapDetector@140e5a13
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformExpectPlatform@3439f68d
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.RemapInjectables@dbd940d
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformPlatformOnly@71d15f18
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformForgeAnnotations@17695df3
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformForgeEnvironment@6c9f5c0d
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.GenerateFakeForgeMod@de3a06f
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.FixForgeMixin@76b10754
-[Architectury Transformer DEBUG] Transforming from E:\Minecraft Modding\Modding\Test\GitHub Test Mod\common\build\devlibs\GitHubTestMod-common-1.2.3-dev.jar to C:\Users\julia\AppData\Local\Temp\8490235387029447056.jar with 8 transformer(s) on dev.architectury.transformer.handler.SimpleTransformerHandler
+[Architectury Transformer DEBUG] Transforming 8 transformer(s) from E:\Minecraft Modding\Modding\Test\GitHub Test Mod\common\build\devlibs\GitHubTestMod-common-1.2.3-dev.jar to C:\Users\julia\AppData\Local\Temp\515439352652414046.jar: 
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.RuntimeMixinRefmapDetector@dbd940d
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformExpectPlatform@71d15f18
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.RemapInjectables@17695df3
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformPlatformOnly@6c9f5c0d
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformForgeAnnotations@de3a06f
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformForgeEnvironment@76b10754
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.GenerateFakeForgeMod@2bea5ab4
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.FixForgeMixin@3d8314f0
+[Architectury Transformer DEBUG] Transforming from E:\Minecraft Modding\Modding\Test\GitHub Test Mod\common\build\devlibs\GitHubTestMod-common-1.2.3-dev.jar to C:\Users\julia\AppData\Local\Temp\515439352652414046.jar with 8 transformer(s) on dev.architectury.transformer.handler.SimpleTransformerHandler
 [Architectury Transformer DEBUG] Remapping with 1 mapping provider(s):
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformForgeEnvironment$$Lambda/0x00000284cf08dfa8@1e67a849
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformForgeEnvironment$$Lambda/0x000001d73b08dfa8@667a738
 [Architectury Transformer DEBUG] Remapping Classes:
 [Architectury Transformer DEBUG] net/fabricmc/api/EnvType -> net/minecraftforge/api/distmarker/Dist
 [Architectury Transformer DEBUG] net/fabricmc/api/Environment -> net/minecraftforge/api/distmarker/OnlyIn
@@ -128,19 +128,19 @@
 [Architectury Transformer DEBUG] Checking whether /github_test_mod.mixins.json is a mixin config.
 [Architectury Transformer DEBUG] Found mixin config(s): github_test_mod.mixins.json
 [Architectury Transformer DEBUG] Appended Launch Argument: [--mixin.config, github_test_mod.mixins.json]
-[Architectury Transformer DEBUG] Closed File Systems for C:\Users\julia\AppData\Local\Temp\8490235387029447056.jar
+[Architectury Transformer DEBUG] Closed File Systems for C:\Users\julia\AppData\Local\Temp\515439352652414046.jar
 [Architectury Transformer] Listening at E:\Minecraft Modding\Modding\Test\GitHub Test Mod\common\build\devlibs\GitHubTestMod-common-1.2.3-dev.jar
-[Architectury Transformer DEBUG] Temporary jar [C:\Users\julia\AppData\Local\Temp\8490235387029447056.jar] contains packages: de.mrjulsen.githubtest
+[Architectury Transformer DEBUG] Temporary jar [C:\Users\julia\AppData\Local\Temp\515439352652414046.jar] contains packages: de.mrjulsen.githubtest
 [Architectury Transformer DEBUG] Closed File Systems for E:\Minecraft Modding\Modding\Test\GitHub Test Mod\common\build\devlibs\GitHubTestMod-common-1.2.3-dev.jar
 [Architectury Transformer DEBUG] Classpath entry [E:\Minecraft Modding\Modding\Test\GitHub Test Mod\forge\build\classes\java\main] contains packages: de.mrjulsen.githubtest.forge
 [Architectury Transformer DEBUG] Classpath entry [E:\Minecraft Modding\Modding\Test\GitHub Test Mod\forge\build\resources\main] contains packages: 
 [Architectury Transformer DEBUG] Transforming from de/mrjulsen/githubtest/GithubTestMod.class to de/mrjulsen/githubtest/GithubTestMod.class with 8 transformer(s) on dev.architectury.transformer.handler.TinyRemapperPreparedTransformerHandler
 [Architectury Transformer DEBUG] Remapping with 1 mapping provider(s):
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformForgeEnvironment$$Lambda/0x00000284cf08dfa8@1e67a849
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformForgeEnvironment$$Lambda/0x000001d73b08dfa8@667a738
 [Architectury Transformer DEBUG] Remapping with Dirty Mappings...
 [Architectury Transformer DEBUG] Remapping Classes:
 [Architectury Transformer DEBUG] net/fabricmc/api/EnvType -> net/minecraftforge/api/distmarker/Dist
 [Architectury Transformer DEBUG] net/fabricmc/api/Environment -> net/minecraftforge/api/distmarker/OnlyIn
 [Architectury Transformer DEBUG] Found class transformer
 [Architectury Transformer DEBUG] Writing de/mrjulsen/githubtest/GithubTestMod with maxs=true frames=true
-[Architectury Transformer DEBUG] Transformed de/mrjulsen/githubtest/GithubTestMod in 64.38 ms
+[Architectury Transformer DEBUG] Transformed de/mrjulsen/githubtest/GithubTestMod in 70.02 ms
