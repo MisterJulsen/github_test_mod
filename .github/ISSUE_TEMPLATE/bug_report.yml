@@ -1,0 +1,45 @@
+name: Bug Report
+title: Report a bug!
+description: Test
+projects: []
+labels:
+  - bug
+body:
+  - type: textarea
+    id: textarea-0
+    attributes:
+      label: Bug Description
+      description: This is a description
+      value: Hello World
+    validations:
+      required: true
+  - type: checkboxes
+    id: checkboxes-1
+    attributes:
+      label: Check it
+      description: Do it
+      options:
+        - label: Option A
+        - label: Option B
+        - label: Option C
+    validations:
+      required: true
+  - type: input
+    id: input-2
+    attributes:
+      label: Hello
+      description: Desc
+      placeholder: Nope
+  - type: dropdown
+    id: dropdown-3
+    attributes:
+      label: etertretret
+      description: sgsfg
+      options:
+        - A
+        - B
+        - C
+        - D
+  - type: markdown
+    attributes:
+      value: OKEEEE
