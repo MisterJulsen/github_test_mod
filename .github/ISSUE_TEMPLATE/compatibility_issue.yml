@@ -20,6 +20,14 @@ body:
       description: The mod version which caused the bug.
       placeholder: 3.0.29+mc1.20.1-forge
     validations:
+      required: true      
+  - type: input
+    id: input-10
+    attributes:
+      label: Affected mods
+      description: The other mod(s) causing the incompatibility. Write the full name of the mod and the version used (Example: `Just Enough Items, 15.62.0.219, Forge, 1.20.1`)
+      placeholder: Just Enough Items, 15.62.0.219, Forge, 1.20.1
+    validations:
       required: true
   - type: input
     id: input-2
