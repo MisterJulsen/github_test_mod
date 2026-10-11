@@ -27,10 +27,9 @@
       }
     ],
     "buttons": [
-      { "label": "<:curseforge:1221523392696684554> CurseForge", "url": "{CURSEFORGE_URL}" },
-      { "label": "<:modrinth:1221523414766981180> Modrinth", "url": "{MODRINTH_URL}" },
-      { "label": "<:github:1187874357201088664> GitHub", "url": "{RELEASE_URL}" },
-      { "label": "Wiki", "url": "{WIKI_URL}" }
+      { "label": "CurseForge", "url": "{CURSEFORGE_URL}", "emoji": "<:curseforge:1221523392696684554>" },
+      { "label": "Modrinth", "url": "{MODRINTH_URL}", "emoji": "<:modrinth:1221523414766981180>" },
+      { "label": "GitHub", "url": "{RELEASE_URL}", "emoji": "<:github:1187874357201088664>" }
     ]
   }
 }
