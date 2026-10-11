@@ -1,45 +1,64 @@
 name: Bug Report
-title: Report a bug!
-description: Test
+title: ""
+description: Did you find a bug? You can report it here.
 projects: []
 labels:
   - bug
 body:
-  - type: textarea
-    id: textarea-0
+  - type: input
+    id: input-0
     attributes:
-      label: Bug Description
-      description: This is a description
-      value: Hello World
+      label: Minecraft Version
+      description: "Details about your game instance, such as the Minecraft version,
+        modloader and modloader version. (Example: `Minecraft Forge
+        1.20.1-47.4.10`)"
+      placeholder: Minecraft Forge 1.20.1-47.4.10
     validations:
       required: true
-  - type: checkboxes
-    id: checkboxes-1
+  - type: input
+    id: input-1
     attributes:
-      label: Check it
-      description: Do it
-      options:
-        - label: Option A
-        - label: Option B
-        - label: Option C
+      label: Mod Version
+      description: The mod version with which the problem occurred.
+      placeholder: 3.0.29+mc1.20.1-forge
     validations:
       required: true
   - type: input
     id: input-2
     attributes:
-      label: Hello
-      description: Desc
-      placeholder: Nope
-  - type: dropdown
-    id: dropdown-3
+      label: Game Log
+      description: Please share your game log for additional information about the
+        bug. Uusually, this is a file called `latest.log` that can be found in
+        the `logs` folder of your Minecraft installation. Please upload the file
+        to https://mclo.gs/ and put the link here.
+      placeholder: https://mclo.gs/AaBbCcDd
+    validations:
+      required: true
+  - type: textarea
+    id: textarea-3
     attributes:
-      label: etertretret
-      description: sgsfg
+      label: Description
+      description: Please describe the bug in as much detail as possible. When did the
+        problem occur? What were you doing when the bug happened? What did you
+        expect to happen? Please also send screenshots or video clips so we can
+        better understand what is going wrong. Also, please explain how to
+        reproduce the problem and what mods you used.
+    validations:
+      required: true
+  - type: dropdown
+    id: dropdown-4
+    attributes:
+      label: Category
+      description: Please specify the category under which you would classify the bug.
       options:
-        - A
-        - B
-        - C
-        - D
+        - Gameplay
+        - Visual
+        - Performance
+        - Compatibility
+        - Game Breaking
+        - Other
+    validations:
+      required: true
   - type: markdown
     attributes:
-      value: OKEEEE
+      value: Thanks for taking the time to help improve my mods!
