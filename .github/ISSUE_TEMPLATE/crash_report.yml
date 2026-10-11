@@ -8,17 +8,15 @@ body:
     id: input-0
     attributes:
       label: Minecraft Version
-      description: "Details about your game instance, such as the Minecraft version,
-        modloader and modloader version. (Example: `Minecraft Forge
-        1.20.1-47.4.10`)"
-      placeholder: Minecraft Forge 1.20.1-47.4.10
+      description: "Details about your game instance, such as the Minecraft version, modloader and modloader version. (Example: `Forge 1.20.1-47.4.10`)"
+      placeholder: Forge 1.20.1-47.4.10
     validations:
       required: true
   - type: input
     id: input-1
     attributes:
       label: Mod Version
-      description: The mod version with which the problem occurred.
+      description: The mod version which caused the bug.
       placeholder: 3.0.29+mc1.20.1-forge
     validations:
       required: true
@@ -40,7 +38,7 @@ body:
       description: Please describe the crash in as much detail as possible. When did
         the problem occur? What were you doing when the crash happened? Please
         also send screenshots or video clips so we can better understand what is
-        going wrong, explain how to reproduce the problem and tell what mods you
+        going wrong, explain how to reproduce the problem and tell what other mods you
         used.
     validations:
       required: true
