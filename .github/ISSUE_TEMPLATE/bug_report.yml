@@ -1,6 +1,5 @@
 name: Bug Report
-title: "Bug Report"
-description: Did you find a bug? You can report it here.
+description: Did you find a bug? You can report it here. This template is for bugs only, not crashes.
 projects: []
 labels:
   - bug
@@ -9,17 +8,15 @@ body:
     id: input-0
     attributes:
       label: Minecraft Version
-      description: "Details about your game instance, such as the Minecraft version,
-        modloader and modloader version. (Example: `Minecraft Forge
-        1.20.1-47.4.10`)"
-      placeholder: Minecraft Forge 1.20.1-47.4.10
+      description: "Details about your game instance, such as the Minecraft version, modloader and modloader version. (Example: `Forge 1.20.1-47.4.10`)"
+      placeholder: Forge 1.20.1-47.4.10
     validations:
       required: true
   - type: input
     id: input-1
     attributes:
       label: Mod Version
-      description: The mod version with which the problem occurred.
+      description: The mod version which caused the bug.
       placeholder: 3.0.29+mc1.20.1-forge
     validations:
       required: true
@@ -27,10 +24,10 @@ body:
     id: input-2
     attributes:
       label: Game Log
-      description: Please share your game log for additional information about the
-        bug. Uusually, this is a file called `latest.log` that can be found in
-        the `logs` folder of your Minecraft installation. Please upload the file
-        to https://mclo.gs/ and put the link here.
+      description: Please share your game log for additional information about the bug.
+        Usually, this is a file called `latest.log` that can be found in the `logs` folder
+        of your Minecraft installation. Please upload the file to https://mclo.gs/ and put
+        the link here.
       placeholder: https://mclo.gs/AaBbCcDd
     validations:
       required: true
@@ -41,22 +38,22 @@ body:
       description: Please describe the bug in as much detail as possible. When did the
         problem occur? What were you doing when the bug happened? What did you
         expect to happen? Please also send screenshots or video clips so we can
-        better understand what is going wrong. Also, please explain how to
-        reproduce the problem and what mods you used.
+        better understand what is going wrong, explain how to
+        reproduce the bug and tell what other mods you used.
     validations:
       required: true
   - type: dropdown
     id: dropdown-4
     attributes:
       label: Category
-      description: Please specify the category under which you would classify the bug.
+      description: Please specify the category of the bug.
       options:
+        - Other/Unknown
         - Gameplay
         - Visual
         - Performance
         - Compatibility
         - Game Breaking
-        - Other
     validations:
       required: true
   - type: markdown
