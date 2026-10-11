@@ -1,11 +1,8 @@
-blank_issues_enabled: false
+blank_issues_enabled: true
 contact_links:
   - name: Read the Wiki
-    url: https://wiki.mrjulsen.net/createrailwaysnavigator
+    url: https://wiki.mrjulsen.net
     about: Visit the wiki to learn how this mod works.
   - name: Questions & Support
-    url: https://discord.gg/hH7YxTrPpk
-    about: Join the discord server to ask questions and get support by other players or the staff.
-  - name: Discord Chat
     url: https://discord.mrjulsen.net
-    about: Join our discord community!
+    about: Join the discord server to ask questions and get support by other players or the staff.
